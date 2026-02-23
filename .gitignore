@@ -1,0 +1,38 @@
+# Environment & secrets (JANGAN di-commit!)
+.env
+.env.local
+.env.*.local
+
+# Python
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# File besar / data lokal (optional: hapus baris ini kalau mau ikut di-sync)
+*.xlsx
+*.xls
+*.csv
+*.dump
+*.mdb
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

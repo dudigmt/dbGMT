@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/dashboard.css') }}">
+    <link rel="icon" href="{{ url_for('static', path='img/gmtround.png') }}">
+    <title>{% block title %}dbGMT{% endblock %}</title>
+</head>
+<body class="auth-page">
+    <div class="status-indicator" id="status-indicator"></div>
+    <div class="connection-status" id="connection-status" style="display: none;">
+        <div class="status-dot"></div>
+        <span id="connection-text">Connected</span>
+    </div>
+
+    <div class="auth-card">
+        {% block content %}{% endblock %}
+    </div>
+
+    <script>
+        window.translations = {
+            en: {
+                login_title: 'Sign In to dbGMT',
+                login_subtitle: 'Enter your credentials to access the system',
+                username: 'Username',
+                password: 'Password',
+                login_button: 'Sign In',
+                login_footer: '© 2025 dbGMT. All rights reserved.',
+                username_placeholder: 'Enter your username',
+                password_placeholder: 'Enter your password',
+            },
+            id: {
+                login_title: 'Masuk ke dbGMT',
+                login_subtitle: 'Masukkan kredensial Anda untuk mengakses sistem',
+                username: 'Nama Pengguna',
+                password: 'Kata Sandi',
+                login_button: 'Masuk',
+                login_footer: '© 2025 dbGMT. Hak cipta dilindungi.',
+                username_placeholder: 'Masukkan nama pengguna',
+                password_placeholder: 'Masukkan kata sandi',
+            },
+            kr: {
+                login_title: 'dbGMT 로그인',
+                login_subtitle: '시스템에 액세스하려면 자격 증명을 입력하세요',
+                username: '사용자 이름',
+                password: '비밀번호',
+                login_button: '로그인',
+                login_footer: '© 2025 dbGMT. 모든 권리 보유.',
+                username_placeholder: '사용자 이름 입력',
+                password_placeholder: '비밀번호 입력',
+            },
+            cn: {
+                login_title: '登录 dbGMT',
+                login_subtitle: '输入您的凭据以访问系统',
+                username: '用户名',
+                password: '密码',
+                login_button: '登录',
+                login_footer: '© 2025 dbGMT. 保留所有权利。',
+                username_placeholder: '输入用户名',
+                password_placeholder: '输入密码',
+            }
+        };
+
+        let currentLang = localStorage.getItem('language') || 'en';
+
+        function applyTranslations(lang) {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (window.translations[lang] && window.translations[lang][key]) {
+                    el.textContent = window.translations[lang][key];
+                }
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (window.translations[lang] && window.translations[lang][key]) {
+                    el.placeholder = window.translations[lang][key];
+                }
+            });
+        }
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('language', lang);
+            applyTranslations(lang);
+        }
+
+        function initDarkMode() {
+            const saved = localStorage.getItem('dark-mode');
+            if (saved === 'dark') document.body.classList.add('dark-mode');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            applyTranslations(currentLang);
+            initDarkMode();
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+    "welcome": "Selamat datang di dbGMT",
+    "description": "Sistem data perusahaan terpusat - Sumber Kebenaran Tunggal",
+    "hr_module": "Modul HR",
+    "hr_desc": "Kelola karyawan, divisi, dan posisi.",
+    "production_module": "Modul Produksi",
+    "production_desc": "Kelola data produksi (segera hadir).",
+    "operations_module": "Modul Operasional",
+    "operations_desc": "Kelola data operasional (segera hadir).",
+    "reports": "Laporan",
+    "reports_desc": "Hasilkan wawasan dan analitik."
+}

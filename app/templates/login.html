@@ -1,0 +1,94 @@
+{% extends "base_auth.html" %}
+
+{% block title %}Login - dbGMT{% endblock %}
+
+{% block content %}
+<div class="login-card">
+    <div class="login-header">
+        <div class="login-logo">
+            <img src="{{ url_for('static', path='img/gmt-logo.png') }}" alt="GMT Logo">
+        </div>
+        <h2 data-i18n="login_title">Sign In to dbGMT</h2>
+        <p data-i18n="login_subtitle">Enter your credentials to access the system</p>
+    </div>
+
+    <form id="login-form" class="login-form">
+        <div class="form-group">
+            <label for="username" data-i18n="username">Username</label>
+            <input type="text" id="username" name="username" required 
+                   placeholder="Enter your username" data-i18n-placeholder="username_placeholder">
+        </div>
+        <div class="form-group">
+            <label for="password" data-i18n="password">Password</label>
+            <input type="password" id="password" name="password" required 
+                   placeholder="Enter your password" data-i18n-placeholder="password_placeholder">
+        </div>
+        <div class="form-group">
+            <label>
+                <input type="checkbox" name="remember_me" value="true"> Ingat saya
+            </label>
+        </div>
+        <div id="error-message" class="error-message" style="display: none;">
+            <span class="error-icon">⚠️</span>
+            <span id="error-text"></span>
+        </div>
+        <button type="submit" class="login-btn" data-i18n="login_button">
+            <span class="btn-text">Sign In</span>
+            <span class="btn-loader" style="display: none;">⏳</span>
+        </button>
+    </form>
+    <div class="login-footer">
+        <p data-i18n="login_footer">© 2026 dbGMT. All rights reserved.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const loginForm = document.getElementById('login-form');
+    const loginBtn = document.querySelector('.login-btn');
+    const btnText = document.querySelector('.btn-text');
+    const btnLoader = document.querySelector('.btn-loader');
+    const errorDiv = document.getElementById('error-message');
+    const errorText = document.getElementById('error-text');
+
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        btnText.style.display = 'none';
+        btnLoader.style.display = 'inline-block';
+        loginBtn.disabled = true;
+        errorDiv.style.display = 'none';
+
+        const formData = new FormData(loginForm);
+        // Pastikan remember_me dikirim dengan nilai boolean
+        if (!formData.has('remember_me')) {
+            formData.append('remember_me', 'false');
+        } else {
+            formData.set('remember_me', 'true');
+        }
+
+        try {
+            const response = await fetch('/api/v1/auth/login', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            if (response.ok) {
+                localStorage.setItem('access_token', data.access_token);
+                localStorage.setItem('token_type', data.token_type);
+                window.location.href = '/dashboard';
+            } else {
+                errorText.textContent = data.detail || 'Login failed';
+                errorDiv.style.display = 'flex';
+            }
+        } catch (error) {
+            errorText.textContent = 'Network error. Please try again.';
+            errorDiv.style.display = 'flex';
+        } finally {
+            btnText.style.display = 'inline-block';
+            btnLoader.style.display = 'none';
+            loginBtn.disabled = false;
+        }
+    });
+</script>
+{% endblock %}

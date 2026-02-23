@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h1 class="text-3xl font-bold mb-4">Dashboard</h1>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="bg-white dark:bg-gray-800 p-4 rounded shadow">
+        <h2 class="text-xl font-bold mb-2">Total Karyawan</h2>
+        <p class="text-3xl" id="totalEmployees">-</p>
+    </div>
+    <div class="bg-white dark:bg-gray-800 p-4 rounded shadow">
+        <h2 class="text-xl font-bold mb-2">Total Divisi</h2>
+        <p class="text-3xl" id="totalDivisions">-</p>
+    </div>
+    <div class="bg-white dark:bg-gray-800 p-4 rounded shadow">
+        <h2 class="text-xl font-bold mb-2">Total Posisi</h2>
+        <p class="text-3xl" id="totalPositions">-</p>
+    </div>
+</div>
+<script>
+    async function fetchData() {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = '/login';
+            return;
+        }
+        const headers = { 'Authorization': `Bearer ${token}` };
+        try {
+            const [empRes, divRes, posRes] = await Promise.all([
+                fetch('/api/v1/hr/employees', { headers }),
+                fetch('/api/v1/hr/divisions', { headers }),
+                fetch('/api/v1/hr/positions', { headers })
+            ]);
+            if (!empRes.ok || !divRes.ok || !posRes.ok) throw new Error('Failed');
+            const employees = await empRes.json();
+            const divisions = await divRes.json();
+            const positions = await posRes.json();
+            document.getElementById('totalEmployees').innerText = employees.length;
+            document.getElementById('totalDivisions').innerText = divisions.length;
+            document.getElementById('totalPositions').innerText = positions.length;
+        } catch (err) {
+            console.error(err);
+            // Mungkin token expired, redirect ke login
+            localStorage.removeItem('token');
+            window.location.href = '/login';
+        }
+    }
+    fetchData();
+</script>
+{% endblock %}

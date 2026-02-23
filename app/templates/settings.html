@@ -1,0 +1,831 @@
+{% extends "base.html" %}
+
+{% block page_title %}Pengaturan{% endblock %}
+{% block page_subtitle %}Kelola konfigurasi sistem{% endblock %}
+
+{% block extra_head %}
+{{ super() }}
+<style>
+    .settings-container {
+        padding: var(--space-md);
+    }
+    .settings-tabs {
+        display: flex;
+        gap: var(--space-sm);
+        margin-bottom: var(--space-lg);
+        border-bottom: 1px solid var(--color-border);
+        padding-bottom: var(--space-sm);
+        flex-wrap: wrap;
+    }
+    .settings-tabs .tab-btn {
+        padding: var(--space-sm) var(--space-lg);
+        background: transparent;
+        border: none;
+        border-radius: var(--radius-md) var(--radius-md) 0 0;
+        cursor: pointer;
+        color: var(--color-text-secondary);
+        font-weight: var(--font-weight-medium);
+        transition: all var(--transition-fast);
+    }
+    .settings-tabs .tab-btn:hover:not(:disabled) {
+        background: var(--color-border);
+        color: var(--color-text);
+    }
+    .settings-tabs .tab-btn.active {
+        color: var(--color-target);
+        border-bottom: 2px solid var(--color-target);
+    }
+    .settings-tabs .tab-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .tab-content {
+        display: none;
+    }
+    .tab-content.active {
+        display: block;
+    }
+    .salary-actions, .attendance-actions {
+        display: flex;
+        gap: var(--space-md);
+        margin-bottom: var(--space-lg);
+        flex-wrap: wrap;
+    }
+    .settings-form {
+        max-width: 600px;
+        background: var(--color-card);
+        padding: var(--space-lg);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+    }
+    .settings-form .form-group {
+        margin-bottom: var(--space-md);
+    }
+    .settings-form .form-row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    .settings-form .form-row input {
+        flex: 1;
+    }
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: var(--space-md);
+    }
+    .data-table th {
+        background: var(--color-bg-secondary);
+        padding: var(--space-sm);
+        text-align: left;
+        font-weight: var(--font-weight-medium);
+    }
+    .data-table td {
+        padding: var(--space-sm);
+        border-bottom: 1px solid var(--color-border);
+    }
+    .data-table tr:hover {
+        background: var(--color-bg-hover);
+    }
+    .success {
+        color: #4caf50;
+    }
+    .error {
+        color: #f44336;
+    }
+    .info {
+        color: #2196f3;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+    <!-- Tab navigation -->
+    <div class="settings-tabs">
+        <button class="tab-btn" data-tab="users">Manajemen Pengguna</button>
+        <button class="tab-btn" data-tab="salary">Data Gaji</button>
+        <button class="tab-btn active" data-tab="security">Keamanan</button>
+        <button class="tab-btn" data-tab="attendance">Daily Attendance</button>
+        <button class="tab-btn" data-tab="config">Konfigurasi</button>
+        <button class="tab-btn" data-tab="other" disabled>Lainnya (segera)</button>
+    </div>
+
+    <!-- Tab: Manajemen Pengguna -->
+    <div class="tab-content" id="tab-users">
+        <div class="users-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-md);">
+            <h2>Daftar Pengguna</h2>
+            <button class="btn-primary" onclick="showAddUserModal()">Tambah Pengguna</button>
+        </div>
+        <div class="users-table-container">
+            <table class="users-table data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Username</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="users-tbody">
+                    <tr><td colspan="5" style="text-align: center;">Memuat data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Modal untuk Tambah/Edit User -->
+        <div id="user-modal" class="modal" style="display: none;">
+            <div class="modal-content" style="max-width: 500px;">
+                <span class="close" onclick="closeModal()">&times;</span>
+                <h3 id="modal-title">Tambah Pengguna</h3>
+                <form id="user-form">
+                    <input type="hidden" id="user-id">
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" id="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="password" placeholder="Kosongkan jika tidak ingin mengubah">
+                    </div>
+                    <div class="form-group">
+                        <label>Role</label>
+                        <select id="role">
+                            <option value="superadmin">Superadmin</option>
+                            <option value="admin">Admin</option>
+                            <option value="boss">Boss</option>
+                            <option value="user">User</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="is_active" checked> Aktif
+                        </label>
+                    </div>
+                    <button type="submit" class="btn-primary">Simpan</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab: Data Gaji -->
+    <div class="tab-content" id="tab-salary">
+        <h2>Data Gaji</h2>
+        <p>Import atau export data gaji karyawan.</p>
+        
+        <div class="salary-actions">
+            <button class="btn-primary" onclick="showImportSalaryModal()">Import Gaji dari Excel</button>
+            <button class="btn-secondary" onclick="exportSalary()">Export Gaji ke Excel</button>
+        </div>
+
+        <div id="salary-result" style="margin-top: 20px;"></div>
+
+        <!-- Modal Import Gaji -->
+        <div id="import-salary-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close" onclick="closeImportSalaryModal()">&times;</span>
+                <h3>Import Gaji dari Excel</h3>
+                <p>Format: NIK, Periode, Gaji Pokok, Tunj Berkala, Tunj Jabatan, Tunj Kerajinan, Tunj PPh21, Uang Shift, Uang Makan, Ins Prod, Bonus Skill, Ins Hadir, Kompensasi Cuti, Lainnya1, Lainnya2, Lainnya3</p>
+                <form id="import-salary-form" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label>Pilih file Excel</label>
+                        <input type="file" name="file" accept=".xlsx,.xls" required>
+                    </div>
+                    <button type="submit" class="btn-primary">Upload</button>
+                </form>
+                <div id="import-salary-result"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab: Keamanan -->
+    <div class="tab-content active" id="tab-security">
+        <h2>Keamanan</h2>
+        <p>Atur kode akses untuk melihat data sensitif.</p>
+        
+        <div class="settings-form">
+            <h3>Ubah Kode Reveal Gaji</h3>
+            <div class="form-group">
+                <label>Kode baru</label>
+                <input type="password" id="new-reveal-code" placeholder="Masukkan kode baru" required>
+            </div>
+            <div class="form-group">
+                <label>Konfirmasi kode</label>
+                <input type="password" id="confirm-reveal-code" placeholder="Ulangi kode baru" required>
+            </div>
+            <button class="btn-primary" onclick="updateRevealCode()">Simpan</button>
+            <div id="update-result" style="margin-top: 10px;"></div>
+        </div>
+    </div>
+
+    <!-- Tab: Daily Attendance -->
+    <div class="tab-content" id="tab-attendance">
+        <h2>Daily Attendance</h2>
+        <p>Import atau export data absensi harian per departemen (k_GMT dan os_GMT).</p>
+        
+        <div class="attendance-actions">
+            <button class="btn-primary" onclick="showImportAttendanceModal()">Import Attendance dari Excel</button>
+            <button class="btn-secondary" onclick="exportAttendance()">Export Attendance ke Excel</button>
+        </div>
+
+        <!-- Preview data attendance -->
+        <div id="attendance-preview" style="margin-top: 30px;">
+            <h3>Preview Data (10 data terakhir)</h3>
+            <div style="overflow-x: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Departement</th>
+                            <th>Tanggal</th>
+                            <th>k_GMT_1</th>
+                            <th>k_GMT_2</th>
+                            <th>os_GMT_1</th>
+                            <th>os_GMT_2</th>
+                            <th>Created At</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendance-preview-tbody">
+                        <tr><td colspan="8" style="text-align: center;">Memuat data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="attendance-result" style="margin-top: 20px;"></div>
+
+        <!-- Modal Import Attendance -->
+        <div id="import-attendance-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close" onclick="closeImportAttendanceModal()">&times;</span>
+                <h3>Import Daily Attendance dari Excel</h3>
+                <p>Format: Departement, Tanggal, k_GMT_1, k_GMT_2, os_GMT_1, os_GMT_2</p>
+                <p><small>Tanggal bisa format YYYY-MM-DD atau DD/MM/YYYY</small></p>
+                <form id="import-attendance-form" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label>Pilih file Excel</label>
+                        <input type="file" name="file" accept=".xlsx,.xls" required>
+                    </div>
+                    <button type="submit" class="btn-primary">Upload</button>
+                </form>
+                <div id="import-attendance-result"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab: Konfigurasi -->
+    <div class="tab-content" id="tab-config">
+        <h2>Konfigurasi Sistem</h2>
+        <p>Atur parameter-parameter sistem.</p>
+
+        <div class="settings-form">
+            <h3>Path File MDB (Absensi)</h3>
+            <p>Lokasi file database Access (.mdb) yang berisi data check-in/out. Setelah mengubah path, gunakan tombol "Test Connection" untuk memverifikasi.</p>
+            <div class="form-group">
+                <label>Path MDB</label>
+                <div class="form-row">
+                    <input type="text" id="mdb-path" placeholder="Contoh: Q:\att2026.mdb" style="flex: 1;">
+                    <button class="btn-secondary" onclick="testMdbConnection()" id="test-connection-btn">Test Connection</button>
+                </div>
+            </div>
+            <button class="btn-primary" onclick="updateMdbPath()">Simpan Path</button>
+            <div id="mdb-path-result" style="margin-top: 10px;"></div>
+        </div>
+    </div>
+
+    <!-- Tab: Lainnya (placeholder) -->
+    <div class="tab-content" id="tab-other">
+        <p>Fitur lain akan segera hadir.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // ==================== SCRIPT USER MANAGEMENT ====================
+    const token = localStorage.getItem('access_token');
+    if (!token) window.location.href = '/';
+
+    const API_BASE_USERS = '/api/v1/users';
+    const API_BASE_SETTINGS = '/api/v1/settings';
+    const API_BASE_SALARY = '/api/v1/salaries';
+
+    async function fetchUsers() {
+        try {
+            const response = await fetch(API_BASE_USERS, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const users = await response.json();
+                renderUsers(users);
+            } else if (response.status === 401) {
+                alert('Sesi berakhir. Silakan login kembali.');
+                logout();
+            } else {
+                alert('Gagal mengambil data pengguna');
+            }
+        } catch (error) {
+            console.error('Error fetching users:', error);
+            alert('Terjadi kesalahan saat mengambil data pengguna');
+        }
+    }
+
+    function renderUsers(users) {
+        const tbody = document.getElementById('users-tbody');
+        tbody.innerHTML = '';
+        if (users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Tidak ada data</td></tr>';
+            return;
+        }
+        users.forEach(user => {
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td>${user.id}</td>
+                <td>${user.username}</td>
+                <td>${user.role}</td>
+                <td>${user.is_active ? 'Aktif' : 'Nonaktif'}</td>
+                <td>
+                    <button class="btn-small" onclick="editUser(${user.id})">Edit</button>
+                    <button class="btn-small btn-danger" onclick="deleteUser(${user.id})">Hapus</button>
+                </td>
+            `;
+        });
+    }
+
+    window.showAddUserModal = function() {
+        document.getElementById('modal-title').textContent = 'Tambah Pengguna';
+        document.getElementById('user-id').value = '';
+        document.getElementById('username').value = '';
+        document.getElementById('password').value = '';
+        document.getElementById('password').placeholder = 'Masukkan password';
+        document.getElementById('password').required = true;
+        document.getElementById('role').value = 'user';
+        document.getElementById('is_active').checked = true;
+        document.getElementById('user-modal').style.display = 'block';
+    };
+
+    window.closeModal = function() {
+        document.getElementById('user-modal').style.display = 'none';
+    };
+
+    window.editUser = async function(id) {
+        try {
+            const response = await fetch(`${API_BASE_USERS}/${id}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const user = await response.json();
+                document.getElementById('modal-title').textContent = 'Edit Pengguna';
+                document.getElementById('user-id').value = user.id;
+                document.getElementById('username').value = user.username;
+                document.getElementById('password').value = '';
+                document.getElementById('password').placeholder = 'Kosongkan jika tidak diubah';
+                document.getElementById('password').required = false;
+                document.getElementById('role').value = user.role;
+                document.getElementById('is_active').checked = user.is_active;
+                document.getElementById('user-modal').style.display = 'block';
+            } else {
+                alert('Gagal mengambil data pengguna');
+            }
+        } catch (error) {
+            console.error('Error editing user:', error);
+            alert('Terjadi kesalahan');
+        }
+    };
+
+    window.deleteUser = async function(id) {
+        if (confirm('Yakin ingin menghapus pengguna ini?')) {
+            try {
+                const response = await fetch(`${API_BASE_USERS}/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.ok) {
+                    fetchUsers();
+                } else {
+                    const err = await response.json();
+                    alert('Gagal menghapus: ' + (err.detail || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error deleting user:', error);
+                alert('Terjadi kesalahan');
+            }
+        }
+    };
+
+    document.getElementById('user-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('user-id').value;
+        const data = {
+            username: document.getElementById('username').value,
+            role: document.getElementById('role').value,
+            is_active: document.getElementById('is_active').checked
+        };
+        const password = document.getElementById('password').value;
+        if (password) {
+            data.password = password;
+        }
+
+        let url = API_BASE_USERS;
+        let method = 'POST';
+        if (id) {
+            url += '/' + id;
+            method = 'PUT';
+        }
+
+        try {
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                closeModal();
+                fetchUsers();
+            } else {
+                const err = await response.json();
+                alert('Error: ' + (err.detail || 'Gagal menyimpan data'));
+            }
+        } catch (error) {
+            console.error('Error saving user:', error);
+            alert('Terjadi kesalahan saat menyimpan');
+        }
+    });
+
+    // ==================== TAB SWITCHING ====================
+    document.querySelectorAll('.settings-tabs .tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.settings-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const tabId = btn.getAttribute('data-tab');
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            
+            // Load data jika tab attendance dibuka
+            if (tabId === 'attendance') {
+                fetchAttendancePreview();
+            }
+            // Load data jika tab config dibuka
+            if (tabId === 'config') {
+                loadMdbPath();
+            }
+        });
+    });
+
+    // ==================== FITUR GAJI ====================
+    window.showImportSalaryModal = function() {
+        document.getElementById('import-salary-modal').style.display = 'block';
+    };
+
+    window.closeImportSalaryModal = function() {
+        document.getElementById('import-salary-modal').style.display = 'none';
+        document.getElementById('import-salary-result').innerHTML = '';
+        document.getElementById('import-salary-form').reset();
+    };
+
+    window.exportSalary = async function() {
+        try {
+            const response = await fetch(`${API_BASE_SALARY}/export`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) {
+                const err = await response.json();
+                alert('Gagal export: ' + (err.detail || 'Unknown error'));
+                return;
+            }
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'salaries.xlsx';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Export error:', error);
+            alert('Terjadi kesalahan saat export');
+        }
+    };
+
+    document.getElementById('import-salary-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const resultDiv = document.getElementById('import-salary-result');
+        resultDiv.innerHTML = '<p>Uploading...</p>';
+        try {
+            const response = await fetch(`${API_BASE_SALARY}/import`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+            const result = await response.json();
+            if (response.ok && result.success) {
+                let message = `✅ Berhasil import ${result.inserted} data.`;
+                if (result.skipped) message += ` (${result.skipped} dilewati)`;
+                resultDiv.innerHTML = `<p class="success">${message}</p>`;
+                setTimeout(closeImportSalaryModal, 2000);
+            } else {
+                let errorHtml = '<p class="error">❌ Gagal import:</p><ul>';
+                if (result.errors) {
+                    result.errors.forEach(err => {
+                        errorHtml += `<li>Baris ${err.row}: ${err.error}</li>`;
+                    });
+                } else {
+                    errorHtml += `<li>${result.detail || 'Unknown error'}</li>`;
+                }
+                errorHtml += '</ul>';
+                resultDiv.innerHTML = errorHtml;
+            }
+        } catch (error) {
+            resultDiv.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+        }
+    });
+
+    // ==================== FITUR UBAH KODE REVEAL ====================
+    window.updateRevealCode = async function() {
+        const newCode = document.getElementById('new-reveal-code').value;
+        const confirmCode = document.getElementById('confirm-reveal-code').value;
+        const resultDiv = document.getElementById('update-result');
+
+        if (!newCode || newCode !== confirmCode) {
+            resultDiv.innerHTML = '<p class="error">Kode tidak cocok atau kosong!</p>';
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_BASE_SETTINGS}/reveal-code`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ code: newCode })
+            });
+
+            if (response.ok) {
+                resultDiv.innerHTML = '<p class="success">✅ Kode berhasil diubah!</p>';
+                document.getElementById('new-reveal-code').value = '';
+                document.getElementById('confirm-reveal-code').value = '';
+            } else {
+                const err = await response.json();
+                resultDiv.innerHTML = `<p class="error">❌ Gagal: ${err.detail || 'Unknown error'}</p>`;
+            }
+        } catch (error) {
+            resultDiv.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+        }
+    };
+
+    // ==================== FITUR MDB PATH ====================
+    async function loadMdbPath() {
+        try {
+            const response = await fetch(`${API_BASE_SETTINGS}/mdb-path`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                document.getElementById('mdb-path').value = data.path;
+            } else {
+                console.error('Gagal mengambil path MDB');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+    window.updateMdbPath = async function() {
+        const path = document.getElementById('mdb-path').value;
+        if (!path) {
+            alert('Path tidak boleh kosong');
+            return;
+        }
+        const resultDiv = document.getElementById('mdb-path-result');
+        resultDiv.innerHTML = '<p>Menyimpan...</p>';
+        try {
+            const response = await fetch(`${API_BASE_SETTINGS}/mdb-path?path=${encodeURIComponent(path)}`, {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                resultDiv.innerHTML = `<p class="success">✅ ${data.message}</p>`;
+            } else {
+                const err = await response.json();
+                resultDiv.innerHTML = `<p class="error">❌ Gagal: ${err.detail || 'Unknown error'}</p>`;
+            }
+        } catch (error) {
+            resultDiv.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+        }
+    };
+
+    window.testMdbConnection = async function() {
+        const path = document.getElementById('mdb-path').value;
+        if (!path) {
+            alert('Path tidak boleh kosong');
+            return;
+        }
+        const btn = document.getElementById('test-connection-btn');
+        const originalText = btn.textContent;
+        btn.textContent = 'Testing...';
+        btn.disabled = true;
+
+        const resultDiv = document.getElementById('mdb-path-result');
+        resultDiv.innerHTML = '<p>Menguji koneksi...</p>';
+        try {
+            const response = await fetch(`${API_BASE_SETTINGS}/mdb-path/test`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ path: path })
+            });
+            const data = await response.json();
+            if (data.success) {
+                resultDiv.innerHTML = `<p class="success">✅ ${data.message}</p>`;
+            } else {
+                resultDiv.innerHTML = `<p class="error">❌ Gagal: ${data.message}</p>`;
+            }
+        } catch (error) {
+            resultDiv.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+        } finally {
+            btn.textContent = originalText;
+            btn.disabled = false;
+        }
+    };
+
+    // ==================== FITUR DAILY ATTENDANCE ====================
+    async function fetchAttendancePreview() {
+        try {
+            const response = await fetch(`${API_BASE_SETTINGS}/attendance/preview?limit=10`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                renderAttendancePreview(data);
+            } else {
+                const tbody = document.getElementById('attendance-preview-tbody');
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">Preview belum tersedia. Silakan import data terlebih dahulu.</td></tr>';
+            }
+        } catch (error) {
+            console.error('Error fetching attendance preview:', error);
+            const tbody = document.getElementById('attendance-preview-tbody');
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">Error memuat preview</td></tr>';
+        }
+    }
+
+    function renderAttendancePreview(data) {
+        const tbody = document.getElementById('attendance-preview-tbody');
+        tbody.innerHTML = '';
+        
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">Tidak ada data attendance</td></tr>';
+            return;
+        }
+
+        data.forEach(item => {
+            const row = tbody.insertRow();
+            const createdDate = item.created_at ? new Date(item.created_at).toLocaleString('id-ID') : '-';
+            const tanggal = item.tanggal ? new Date(item.tanggal).toLocaleDateString('id-ID') : '-';
+            
+            row.innerHTML = `
+                <td>${item.id || '-'}</td>
+                <td>${item.departement || '-'}</td>
+                <td>${tanggal}</td>
+                <td>${item.k_gmt_1 || 0}</td>
+                <td>${item.k_gmt_2 || 0}</td>
+                <td>${item.os_gmt_1 || 0}</td>
+                <td>${item.os_gmt_2 || 0}</td>
+                <td>${createdDate}</td>
+            `;
+        });
+    }
+
+    window.showImportAttendanceModal = function() {
+        document.getElementById('import-attendance-modal').style.display = 'block';
+    };
+
+    window.closeImportAttendanceModal = function() {
+        document.getElementById('import-attendance-modal').style.display = 'none';
+        document.getElementById('import-attendance-result').innerHTML = '';
+        document.getElementById('import-attendance-form').reset();
+    };
+
+    window.exportAttendance = async function() {
+        try {
+            const response = await fetch(`${API_BASE_SETTINGS}/attendance/export`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) {
+                const err = await response.json();
+                alert('Gagal export: ' + (err.detail || 'Unknown error'));
+                return;
+            }
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'daily_attendance.xlsx';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Export error:', error);
+            alert('Terjadi kesalahan saat export');
+        }
+    };
+
+    document.getElementById('import-attendance-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const resultDiv = document.getElementById('import-attendance-result');
+        resultDiv.innerHTML = '<p>Uploading...</p>';
+        
+        try {
+            const response = await fetch(`${API_BASE_SETTINGS}/attendance/import`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok && result.success) {
+                let message = `✅ Berhasil import ${result.inserted} data.`;
+                if (result.skipped) message += ` (${result.skipped} dilewati)`;
+                resultDiv.innerHTML = `<p class="success">${message}</p>`;
+                
+                if (result.errors && result.errors.length > 0) {
+                    let errorHtml = '<p>Detail error (max 5):</p><ul>';
+                    result.errors.slice(0, 5).forEach(err => {
+                        errorHtml += `<li>Baris ${err.row}: ${err.error}</li>`;
+                    });
+                    if (result.errors.length > 5) {
+                        errorHtml += `<li>... dan ${result.errors.length - 5} error lainnya</li>`;
+                    }
+                    errorHtml += '</ul>';
+                    resultDiv.innerHTML += errorHtml;
+                }
+                
+                fetchAttendancePreview();
+                setTimeout(closeImportAttendanceModal, 3000);
+            } else {
+                let errorMsg = '❌ Gagal import: ';
+                if (result.detail) {
+                    errorMsg += result.detail;
+                } else if (result.errors) {
+                    errorMsg += 'Lihat detail di bawah';
+                } else {
+                    errorMsg += 'Unknown error';
+                }
+                resultDiv.innerHTML = `<p class="error">${errorMsg}</p>`;
+                
+                if (result.errors && result.errors.length > 0) {
+                    let errorHtml = '<ul>';
+                    result.errors.slice(0, 10).forEach(err => {
+                        errorHtml += `<li>Baris ${err.row}: ${err.error}</li>`;
+                    });
+                    errorHtml += '</ul>';
+                    resultDiv.innerHTML += errorHtml;
+                }
+            }
+        } catch (error) {
+            resultDiv.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+        }
+    });
+
+    // Tutup modal jika klik di luar
+    window.onclick = function(event) {
+        const userModal = document.getElementById('user-modal');
+        const salaryModal = document.getElementById('import-salary-modal');
+        const attendanceModal = document.getElementById('import-attendance-modal');
+        
+        if (event.target == userModal) {
+            closeModal();
+        }
+        if (event.target == salaryModal) {
+            closeImportSalaryModal();
+        }
+        if (event.target == attendanceModal) {
+            closeImportAttendanceModal();
+        }
+    };
+
+    // Load users dan set active tab saat halaman dimuat
+    document.addEventListener('DOMContentLoaded', () => {
+        fetchUsers();
+        
+        const hash = window.location.hash.substring(1);
+        if (hash) {
+            const tabBtn = document.querySelector(`.settings-tabs .tab-btn[data-tab="${hash}"]`);
+            if (tabBtn) {
+                tabBtn.click();
+            }
+        }
+    });
+</script>
+{% endblock %}

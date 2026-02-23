@@ -1,0 +1,669 @@
+{% extends "base.html" %}
+
+{% block page_title %}Dashboard{% endblock %}
+{% block page_subtitle %}Data Karyawan Aktif{% endblock %}
+
+{% block extra_head %}
+{{ super() }}
+<style>
+    .comparison-container {
+        margin: 20px 0;
+        padding: 15px;
+        background: var(--color-card);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+    }
+    .comparison-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--color-card);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        margin-top: 15px;
+        font-size: 0.9rem;
+    }
+    .comparison-table th, .comparison-table td {
+        padding: 8px 6px;
+        text-align: center;
+        border: 1px solid var(--color-border);
+    }
+    .comparison-table th {
+        background: var(--color-bg-secondary);
+        font-weight: 600;
+        vertical-align: middle;
+    }
+    .comparison-table .dept-name {
+        text-align: left;
+        font-weight: 500;
+    }
+    .comparison-table tfoot tr {
+        background: var(--color-bg-tertiary);
+        font-weight: bold;
+    }
+    .positive-change {
+        color: #f44336;
+        font-weight: bold;
+    }
+    .negative-change {
+        color: #4caf50;
+        font-weight: bold;
+    }
+    .zero-change {
+        color: #2196f3;
+        font-weight: bold;
+    }
+    .change-arrow {
+        font-size: 1.2em;
+        margin-right: 2px;
+    }
+    .nav-controls {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-bottom: 15px;
+    }
+    .nav-controls button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .date-range {
+        margin: 0 15px;
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+    /* Style untuk badge summary */
+    .summary-badge {
+        display: flex;
+        gap: 15px;
+        margin-left: auto;  /* dorong ke kanan */
+    }
+    .badge-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .badge-label {
+        font-weight: 600;
+    }
+    .badge-value {
+        font-weight: bold;
+        padding: 4px 10px;
+        border-radius: 20px;
+        color: white;
+    }
+    .badge-blue {
+        background-color: #2196f3;
+    }
+    .badge-orange {
+        background-color: #ff9800;
+    }
+    .badge-green {
+        background-color: #4caf50;
+    }
+    /* Style untuk modal checkin */
+    .checkin-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .checkin-table th {
+        background: var(--color-bg-secondary);
+        padding: 10px;
+        text-align: left;
+    }
+    .checkin-table td {
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--color-border);
+    }
+    .checkin-table tr:hover {
+        background: var(--color-bg-hover);
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-cards">
+    <div class="card">
+        <h3>Total Karyawan</h3>
+        <p class="card-value" id="total-aktif">-</p>
+    </div>
+    <div class="card" id="card-pimpinan">
+        <h3>Pimpinan</h3>
+        <p class="card-value" id="pimpinan">-</p>
+    </div>
+    <div class="card">
+        <h3>Karyawan</h3>
+        <p class="card-value" id="karyawan">-</p>
+    </div>
+    <div class="card">
+        <h3>Tetap</h3>
+        <p class="card-value" id="tetap">-</p>
+    </div>
+    <div class="card">
+        <h3>Kontrak</h3>
+        <p class="card-value" id="kontrak">-</p>
+    </div>
+    <div class="card">
+        <h3>OS</h3>
+        <p class="card-value" id="os">-</p>
+    </div>
+    <!-- CARD CHECK-IN NORMAL (clickable) -->
+    <div class="card" id="card-checkin" style="cursor: pointer;">
+        <h3>Check-In Normal</h3>
+        <p class="card-value" id="checkin-normal">-</p>
+    </div>
+    <!-- CARD CHECK-OUT NORMAL -->
+    <div class="card">
+        <h3>Check-Out Normal</h3>
+        <p class="card-value" id="checkout-normal">-</p>
+    </div>
+</div>
+
+<!-- Perbandingan attendance dengan navigasi -->
+<div class="comparison-container">
+    <h3>Perbandingan Attendance</h3>
+    <div class="nav-controls">
+        <button id="prev-comparison" class="btn-secondary">◀ Sebelumnya</button>
+        <span id="comparison-range" class="date-range">-</span>
+        <button id="next-comparison" class="btn-secondary">Berikutnya ▶</button>
+        <!-- Summary badge untuk tanggal terbaru -->
+        <div id="summary-badge" class="summary-badge">
+            <!-- akan diisi JavaScript -->
+        </div>
+    </div>
+    <div id="comparison-result" style="margin-top: 20px; overflow-x: auto;">
+        <!-- Tabel akan diisi JavaScript -->
+    </div>
+</div>
+
+<!-- Modal untuk Detail Pimpinan -->
+<div id="pimpinan-modal" class="modal" style="display: none;">
+    <div class="modal-content modal-lg">
+        <div class="modal-header">
+            <h2>Detail Pimpinan</h2>
+            <span class="close" onclick="closePimpinanModal()">&times;</span>
+        </div>
+        <div class="pimpinan-tabs">
+            <button class="tab-btn active" data-tab="manager" id="tab-manager">Manager (0)</button>
+            <button class="tab-btn" data-tab="supervisor" id="tab-supervisor">Supervisor (0)</button>
+            <button class="tab-btn" data-tab="leader" id="tab-leader">Leader (0)</button>
+        </div>
+        <div style="flex: 1; overflow-y: auto; min-height: 0;">
+            <div id="manager-content" class="tab-content active">
+                <table class="pimpinan-table">
+                    <thead>
+                        <tr>
+                            <th>NIK</th>
+                            <th>Nama</th>
+                            <th>Departemen</th>
+                            <th>Check-In</th>
+                        </tr>
+                    </thead>
+                    <tbody id="manager-tbody"></tbody>
+                </table>
+            </div>
+            <div id="supervisor-content" class="tab-content">
+                <table class="pimpinan-table">
+                    <thead>
+                        <tr>
+                            <th>NIK</th>
+                            <th>Nama</th>
+                            <th>Departemen</th>
+                            <th>Check-In</th>
+                        </tr>
+                    </thead>
+                    <tbody id="supervisor-tbody"></tbody>
+                </table>
+            </div>
+            <div id="leader-content" class="tab-content">
+                <table class="pimpinan-table">
+                    <thead>
+                        <tr>
+                            <th>NIK</th>
+                            <th>Nama</th>
+                            <th>Departemen</th>
+                            <th>Check-In</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leader-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL UNTUK DETAIL CHECK-IN (dengan kolom jam) -->
+<div id="checkin-modal" class="modal" style="display: none;">
+    <div class="modal-content modal-lg">
+        <div class="modal-header">
+            <h2>Daftar Karyawan Check-In Hari Ini</h2>
+            <span class="close" onclick="closeCheckinModal()">&times;</span>
+        </div>
+        <div style="max-height: 400px; overflow-y: auto;">
+            <table class="checkin-table">
+                <thead>
+                    <tr>
+                        <th>NIK</th>
+                        <th>Nama</th>
+                        <th>Departemen</th>
+                        <th>Jabatan</th>
+                        <th>Jam Check-In</th>
+                    </tr>
+                </thead>
+                <tbody id="checkin-modal-tbody">
+                    <tr><td colspan="5" style="text-align: center;">Memuat data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block last_update_value %}{{ last_update }}{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    const token = localStorage.getItem('access_token');
+    if (!token) window.location.href = '/';
+
+    // Urutan departemen sesuai permintaan
+    const departmentOrder = [
+        'HRD',
+        'ACCOUNTING & FINANCE',
+        'LEGAL',
+        'MANAGER PRODUKSI',
+        'MARKETING',
+        'DEVELOPMENT',
+        'ADM PRODUKSI',
+        'PPC',
+        'DESIGNER',
+        'DRIVER',
+        'MEKANIK',
+        'GA',
+        'GUDANG CHEMICAL / ATK',
+        'GUDANG MATERIAL',
+        'MIXING',
+        'FILM',
+        'SABLON',
+        'EMBOSS',
+        'CUTTING',
+        'INPUT / OUTPUT',
+        'NOSEW',
+        'QC',
+        'SEWING',
+        'LAMINATING',
+        'HOTPRESS',
+        'ASSEMBLING',
+        'PURCHASING'
+    ];
+
+    async function loadDashboardStats() {
+        try {
+            const response = await fetch('/api/v1/hr/stats', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const stats = await response.json();
+                document.getElementById('total-aktif').textContent = stats.total_aktif;
+                document.getElementById('pimpinan').textContent = stats.pimpinan;
+                document.getElementById('karyawan').textContent = stats.karyawan;
+                document.getElementById('tetap').textContent = stats.tetap;
+                document.getElementById('kontrak').textContent = stats.kontrak;
+                document.getElementById('os').textContent = stats.os;
+            } else {
+                console.error('Failed to load stats');
+            }
+        } catch (error) {
+            console.error('Error loading stats:', error);
+        }
+    }
+
+    async function loadCheckinNormal() {
+        try {
+            const response = await fetch('/api/v1/hr/checkin/count', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const count = await response.json();
+                document.getElementById('checkin-normal').textContent = count;
+            } else {
+                console.error('Gagal memuat data check-in');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+    async function loadCheckoutNormal() {
+        try {
+            const response = await fetch('/api/v1/hr/checkout/count', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const count = await response.json();
+                document.getElementById('checkout-normal').textContent = count;
+            } else {
+                console.error('Gagal memuat data check-out');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+    // ==================== MODAL CHECK-IN ====================
+    document.getElementById('card-checkin').addEventListener('click', async () => {
+        try {
+            const response = await fetch('/api/v1/hr/checkin/details', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const employees = await response.json();
+                renderCheckinModal(employees);
+                document.getElementById('checkin-modal').style.display = 'block';
+            } else {
+                alert('Gagal mengambil data check-in');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Terjadi kesalahan');
+        }
+    });
+
+    function renderCheckinModal(employees) {
+        const tbody = document.getElementById('checkin-modal-tbody');
+        tbody.innerHTML = '';
+        if (!employees || employees.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Tidak ada karyawan yang check-in hari ini</td></tr>';
+            return;
+        }
+        employees.forEach(emp => {
+            const row = tbody.insertRow();
+            row.style.cursor = 'pointer';
+            row.innerHTML = `<td>${emp.nik}</td><td>${emp.nama}</td><td>${emp.dept || '-'}</td><td>${emp.jabatan || '-'}</td><td>${emp.jam || '-'}</td>`;
+            row.addEventListener('click', () => {
+                showEmployeeDetail(emp.id);
+            });
+        });
+    }
+
+    window.closeCheckinModal = function() {
+        document.getElementById('checkin-modal').style.display = 'none';
+    };
+
+    // ==================== MODAL PIMPINAN ====================
+    document.getElementById('card-pimpinan').addEventListener('click', async () => {
+        try {
+            const response = await fetch('/api/v1/hr/pimpinan-detail', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                const checkinResponse = await fetch('/api/v1/hr/checkin/niks', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                let checkinNikSet = new Set();
+                if (checkinResponse.ok) {
+                    const niks = await checkinResponse.json();
+                    checkinNikSet = new Set(niks);
+                }
+                renderPimpinanModal(data, checkinNikSet);
+                document.getElementById('pimpinan-modal').style.display = 'block';
+            } else {
+                alert('Gagal mengambil data pimpinan');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Terjadi kesalahan');
+        }
+    });
+
+    function renderPimpinanModal(data, checkinNikSet) {
+        document.getElementById('tab-manager').textContent = `Manager (${data.manager.length})`;
+        document.getElementById('tab-supervisor').textContent = `Supervisor (${data.supervisor.length})`;
+        document.getElementById('tab-leader').textContent = `Leader (${data.leader.length})`;
+
+        function fillTable(tbodyId, employees) {
+            const tbody = document.getElementById(tbodyId);
+            tbody.innerHTML = '';
+            employees.forEach(emp => {
+                const row = tbody.insertRow();
+                row.style.cursor = 'pointer';
+                const checkinIcon = checkinNikSet.has(emp.nik) ? '✅' : '❌';
+                row.innerHTML = `<td>${emp.nik}</td><td>${emp.nama}</td><td>${emp.dept || '-'}</td><td>${checkinIcon}</td>`;
+                row.addEventListener('click', () => {
+                    fetch(`/api/v1/hr/employees?search=${emp.nik}&limit=1`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.items && data.items.length > 0) {
+                            showEmployeeDetail(data.items[0].id);
+                        }
+                    });
+                });
+            });
+        }
+
+        fillTable('manager-tbody', data.manager);
+        fillTable('supervisor-tbody', data.supervisor);
+        fillTable('leader-tbody', data.leader);
+    }
+
+    window.closePimpinanModal = function() {
+        document.getElementById('pimpinan-modal').style.display = 'none';
+    };
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const tabId = btn.getAttribute('data-tab');
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(tabId + '-content').classList.add('active');
+        });
+    });
+
+    // ==================== FITUR PERBANDINGAN ATTENDANCE ====================
+    let currentOffset = 0;
+
+    async function loadComparisonByOffset(offset) {
+        try {
+            const response = await fetch(`/api/v1/settings/attendance/compare-latest?offset=${offset}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const result = await response.json();
+                renderComparisonTable(result.data, result.dates[0], result.dates[1]);
+                document.getElementById('comparison-range').textContent = `${result.dates[0]} ◀ ▶ ${result.dates[1]}`;
+                document.getElementById('prev-comparison').disabled = false;
+                document.getElementById('next-comparison').disabled = (offset === 0);
+            } else if (response.status === 404) {
+                document.getElementById('comparison-result').innerHTML = '<p>Tidak ada data untuk perbandingan lebih lanjut</p>';
+                document.getElementById('comparison-range').textContent = '-';
+                document.getElementById('prev-comparison').disabled = false;
+                document.getElementById('next-comparison').disabled = (offset === 0);
+                document.getElementById('summary-badge').innerHTML = ''; // kosongkan badge
+            } else {
+                console.error('Gagal memuat data');
+                document.getElementById('comparison-result').innerHTML = '<p>Gagal memuat data</p>';
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+    function renderComparisonTable(data, date1, date2) {
+        const container = document.getElementById('comparison-result');
+        if (!data || data.length === 0) {
+            container.innerHTML = '<p>Tidak ada data untuk tanggal tersebut</p>';
+            document.getElementById('summary-badge').innerHTML = '';
+            return;
+        }
+
+        const sortedData = [];
+        departmentOrder.forEach(dept => {
+            const found = data.find(item => item.departement === dept);
+            if (found) {
+                sortedData.push(found);
+            } else {
+                sortedData.push({
+                    departement: dept,
+                    tgl1: { k_gmt_1: 0, k_gmt_2: 0, os_gmt_1: 0, os_gmt_2: 0, total: 0 },
+                    tgl2: { k_gmt_1: 0, k_gmt_2: 0, os_gmt_1: 0, os_gmt_2: 0, total: 0 }
+                });
+            }
+        });
+
+        // Hitung total kontrak dan OS untuk tanggal terbaru (tgl2)
+        let totalKontrak = 0;
+        let totalOS = 0;
+        let totalKeseluruhan = 0;
+        sortedData.forEach(item => {
+            totalKontrak += (item.tgl2.k_gmt_1 + item.tgl2.k_gmt_2);
+            totalOS += (item.tgl2.os_gmt_1 + item.tgl2.os_gmt_2);
+            totalKeseluruhan += item.tgl2.total;
+        });
+
+        // Update summary badge
+        const badgeDiv = document.getElementById('summary-badge');
+        badgeDiv.innerHTML = `
+            <div class="badge-item">                
+                <span class="badge-value badge-blue">Kontrak : ${totalKontrak}</span>
+            </div>
+            <div class="badge-item">            
+                <span class="badge-value badge-orange">OS : ${totalOS}</span>
+            </div>
+            <div class="badge-item">
+                <span class="badge-value badge-green">Total : ${totalKeseluruhan}</span>
+            </div>
+        `;
+
+        let grandTotalTgl1 = 0;
+        let grandTotalTgl2 = 0;
+        sortedData.forEach(item => {
+            grandTotalTgl1 += item.tgl1.total;
+            grandTotalTgl2 += item.tgl2.total;
+        });
+
+        let html = '<table class="comparison-table">';
+        html += '<thead>';
+        html += '<tr>';
+        html += '<th rowspan="3">Departemen</th>';
+        html += `<th colspan="5">Karyawan Masuk : ${date1}</th>`;
+        html += `<th colspan="5">Karyawan Masuk : ${date2}</th>`;
+        html += '<th rowspan="3">Percentage</th>';
+        html += '</tr>';
+        html += '<tr>';
+        html += '<th colspan="2">Kontrak</th>';
+        html += '<th colspan="2">OS</th>';
+        html += '<th>Total</th>';
+        html += '<th colspan="2">Kontrak</th>';
+        html += '<th colspan="2">OS</th>';
+        html += '<th>Total</th>';
+        html += '</tr>';
+        html += '<tr>';
+        html += '<th>GMT-1</th><th>GMT-2</th>';
+        html += '<th>GMT-1</th><th>GMT-2</th>';
+        html += '<th></th>';
+        html += '<th>GMT-1</th><th>GMT-2</th>';
+        html += '<th>GMT-1</th><th>GMT-2</th>';
+        html += '<th></th>';
+        html += '<th></th>';
+        html += '</tr>';
+        html += '</thead><tbody>';
+
+        sortedData.forEach(item => {
+            const t1 = item.tgl1;
+            const t2 = item.tgl2;
+            const total1 = t1.total;
+            const total2 = t2.total;
+            let changePercent = 0;
+            let changeClass = 'zero-change';
+            let arrow = '•';
+            
+            if (total1 !== 0) {
+                changePercent = ((total2 - total1) / total1 * 100).toFixed(2);
+                if (changePercent > 0) {
+                    changeClass = 'positive-change';
+                    arrow = '▲';
+                } else if (changePercent < 0) {
+                    changeClass = 'negative-change';
+                    arrow = '▼';
+                    changePercent = Math.abs(changePercent).toFixed(2);
+                } else {
+                    changeClass = 'zero-change';
+                    arrow = '•';
+                }
+            } else if (total2 > 0) {
+                changePercent = '+∞';
+                changeClass = 'positive-change';
+                arrow = '▲';
+            } else {
+                changePercent = '0';
+            }
+
+            html += `<tr>
+                <td class="dept-name">${item.departement}</td>
+                <td>${t1.k_gmt_1}</td><td>${t1.k_gmt_2}</td>
+                <td>${t1.os_gmt_1}</td><td>${t1.os_gmt_2}</td>
+                <td>${total1}</td>
+                <td>${t2.k_gmt_1}</td><td>${t2.k_gmt_2}</td>
+                <td>${t2.os_gmt_1}</td><td>${t2.os_gmt_2}</td>
+                <td>${total2}</td>
+                <td class="${changeClass}"><span class="change-arrow">${arrow}</span> ${changePercent}%</td>
+            </tr>`;
+        });
+
+        let totalChangePercent = 0;
+        let totalChangeClass = 'zero-change';
+        let totalArrow = '•';
+        if (grandTotalTgl1 !== 0) {
+            totalChangePercent = ((grandTotalTgl2 - grandTotalTgl1) / grandTotalTgl1 * 100).toFixed(2);
+            if (totalChangePercent > 0) {
+                totalChangeClass = 'positive-change';
+                totalArrow = '▲';
+            } else if (totalChangePercent < 0) {
+                totalChangeClass = 'negative-change';
+                totalArrow = '▼';
+                totalChangePercent = Math.abs(totalChangePercent).toFixed(2);
+            }
+        } else if (grandTotalTgl2 > 0) {
+            totalChangePercent = '+∞';
+            totalChangeClass = 'positive-change';
+            totalArrow = '▲';
+        }
+
+        html += `<tfoot>
+            <tr>
+                <td class="dept-name"><strong>TOTAL</strong></td>
+                <td>-</td><td>-</td><td>-</td><td>-</td>
+                <td><strong>${grandTotalTgl1}</strong></td>
+                <td>-</td><td>-</td><td>-</td><td>-</td>
+                <td><strong>${grandTotalTgl2}</strong></td>
+                <td class="${totalChangeClass}"><span class="change-arrow">${totalArrow}</span> ${totalChangePercent}%</td>
+            </tr>
+        </tfoot>`;
+        html += '</table>';
+        container.innerHTML = html;
+    }
+
+    document.getElementById('prev-comparison').addEventListener('click', () => {
+        currentOffset++;
+        loadComparisonByOffset(currentOffset);
+    });
+
+    document.getElementById('next-comparison').addEventListener('click', () => {
+        if (currentOffset > 0) {
+            currentOffset--;
+            loadComparisonByOffset(currentOffset);
+        }
+    });
+
+    loadDashboardStats();
+    loadCheckinNormal();
+    loadCheckoutNormal();
+    loadComparisonByOffset(0);
+</script>
+{% endblock %}

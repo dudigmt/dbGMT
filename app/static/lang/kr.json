@@ -1,0 +1,12 @@
+{
+    "welcome": "dbGMT에 오신 것을 환영합니다",
+    "description": "중앙 집중식 엔터프라이즈 데이터 시스템 - 단일 진실 공급원",
+    "hr_module": "HR 모듈",
+    "hr_desc": "직원, 부서 및 직위를 관리합니다.",
+    "production_module": "생산 모듈",
+    "production_desc": "생산 데이터 관리 (출시 예정).",
+    "operations_module": "운영 모듈",
+    "operations_desc": "운영 데이터 관리 (출시 예정).",
+    "reports": "보고서",
+    "reports_desc": "통찰력 및 분석 생성."
+}

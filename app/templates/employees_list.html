@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+
+{% block page_title %}Daftar Karyawan{% endblock %}
+{% block page_subtitle %}Kelola data karyawan perusahaan{% endblock %}
+
+{% block content %}
+<div class="employees-header">
+    <h2>Data Karyawan</h2>
+    <div class="employees-actions">
+        <a href="/employees/new" class="btn-primary">Tambah Karyawan</a>
+        <button class="btn-secondary" onclick="showImportModal()">Import Excel</button>
+        <button class="btn-secondary" onclick="exportEmployees()">Export Excel</button>
+        <button class="btn-refresh" onclick="refreshData()" title="Refresh Data">
+            🔄 Refresh
+        </button>
+    </div>
+</div>
+
+<!-- Filter dan Sort -->
+<div class="filter-sort-bar">
+    <div class="search-box">
+        <input type="text" id="search-input" placeholder="Cari NIK, Nama, Dept, Jabatan...">
+        <button id="search-btn" class="btn-filter">Cari</button>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <label>
+            <input type="checkbox" id="active-only" checked> Tampilkan hanya aktif
+        </label>
+    </div>
+    <div class="sort-controls">
+        <select id="sort-by">
+            <option value="nik">NIK</option>
+            <option value="nama">Nama</option>
+            <option value="dept">Departemen</option>
+            <option value="jabatan">Jabatan</option>
+            <option value="tgl_rekrut">Tanggal Masuk</option>
+        </select>
+        <select id="sort-order">
+            <option value="asc">Ascending</option>
+            <option value="desc">Descending</option>
+        </select>
+        <button id="sort-btn" class="btn-filter">Urutkan</button>
+    </div>
+</div>
+
+<!-- Tabel Karyawan (dengan kolom Check-In) -->
+<div class="employees-table-container">
+    <table class="employees-table">
+        <thead>
+            <tr>
+                <th>NIK</th>
+                <th>Nama</th>
+                <th>Departemen</th>
+                <th>Jabatan</th>
+                <th>Tanggal Masuk</th>
+                <th>Status</th>
+                <th>Check-In</th>  <!-- Kolom baru -->
+            </tr>
+        </thead>
+        <tbody id="employees-tbody">
+            <tr><td colspan="7" style="text-align: center;">Memuat data...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Info showing dan Pagination -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
+    <div id="showing-info" style="color: var(--color-text-secondary);">Menampilkan 0-0 dari 0 karyawan</div>
+    <div class="pagination">
+        <button id="prev-page" disabled>‹ Sebelumnya</button>
+        <span id="page-info">Halaman 1 dari 1</span>
+        <button id="next-page" disabled>Berikutnya ›</button>
+    </div>
+</div>
+
+<!-- Modal Import (sama seperti sebelumnya) -->
+<div id="import-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close" onclick="closeImportModal()">&times;</span>
+        <h3>Import Karyawan dari Excel</h3>
+        <form id="import-form" enctype="multipart/form-data">
+            <div class="form-group">
+                <label>Pilih file Excel</label>
+                <input type="file" name="file" accept=".xlsx,.xls" required>
+            </div>
+            <button type="submit" class="btn-primary">Upload</button>
+        </form>
+        <div id="import-result"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    const token = localStorage.getItem('access_token');
+    if (!token) window.location.href = '/';
+
+    let currentPage = 0;
+    const pageSize = 20;
+    let totalItems = 0;
+    let currentSearch = '';
+    let currentSortBy = 'nik';
+    let currentSortDesc = false;
+    let currentActiveOnly = true;
+
+    // Menyimpan daftar NIK yang check-in hari ini
+    let checkinNikSet = new Set();
+
+    async function fetchCheckinNiks() {
+        try {
+            const response = await fetch('/api/v1/hr/checkin/niks', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const niks = await response.json();
+                checkinNikSet = new Set(niks);
+            } else {
+                console.error('Gagal mengambil daftar check-in');
+            }
+        } catch (error) {
+            console.error('Error fetching check-in niks:', error);
+        }
+    }
+
+    async function fetchEmployees() {
+        const skip = currentPage * pageSize;
+        let url = `/api/v1/hr/employees?skip=${skip}&limit=${pageSize}&active_only=${currentActiveOnly}`;
+        if (currentSearch) {
+            url += `&search=${encodeURIComponent(currentSearch)}`;
+        }
+        url += `&sort_by=${currentSortBy}&sort_desc=${currentSortDesc}`;
+        try {
+            const response = await fetch(url, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                renderEmployees(data.items);
+                totalItems = data.total;
+                updatePaginationAndInfo();
+            } else {
+                document.getElementById('employees-tbody').innerHTML = '<tr><td colspan="7">Gagal memuat data</td></tr>';
+            }
+        } catch (error) {
+            document.getElementById('employees-tbody').innerHTML = '<tr><td colspan="7">Error</td></tr>';
+        }
+    }
+
+    function renderEmployees(employees) {
+        const tbody = document.getElementById('employees-tbody');
+        tbody.innerHTML = '';
+        if (!employees || employees.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7">Tidak ada data</td></tr>';
+            return;
+        }
+        employees.forEach(emp => {
+            const row = tbody.insertRow();
+            row.dataset.employeeId = emp.id;
+            row.style.cursor = 'pointer';
+            
+            let tglRekrut = '-';
+            if (emp.tgl_rekrut) {
+                const d = new Date(emp.tgl_rekrut);
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+                tglRekrut = `${d.getDate().toString().padStart(2,'0')}-${months[d.getMonth()]}-${d.getFullYear()}`;
+            }
+
+            let statusHtml = '';
+            if (emp.tgl_out) {
+                const d = new Date(emp.tgl_out);
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+                const tglOutStr = `${d.getDate().toString().padStart(2,'0')}-${months[d.getMonth()]}-${d.getFullYear()}`;
+                statusHtml = `<span style="color: #f44336; font-weight: bold;">OUT: ${tglOutStr}</span>`;
+            } else {
+                statusHtml = `<span style="color: #4caf50; font-weight: bold;">Aktif</span>`;
+            }
+
+            const checkinIcon = checkinNikSet.has(emp.nik) ? '✅' : '❌';
+
+            row.innerHTML = `
+                <td>${emp.nik || '-'}</td>
+                <td>${emp.nama || '-'}</td>
+                <td>${emp.dept || '-'}</td>
+                <td>${emp.jabatan || '-'}</td>
+                <td>${tglRekrut}</td>
+                <td>${statusHtml}</td>
+                <td>${checkinIcon}</td>
+            `;
+            row.addEventListener('click', () => showEmployeeDetail(emp.id));
+        });
+    }
+
+    function updatePaginationAndInfo() {
+        const totalPages = Math.ceil(totalItems / pageSize);
+        document.getElementById('page-info').textContent = `Halaman ${currentPage + 1} dari ${totalPages || 1}`;
+        document.getElementById('prev-page').disabled = currentPage === 0;
+        document.getElementById('next-page').disabled = currentPage >= totalPages - 1;
+
+        const start = totalItems === 0 ? 0 : currentPage * pageSize + 1;
+        const end = Math.min((currentPage + 1) * pageSize, totalItems);
+        document.getElementById('showing-info').textContent = `Menampilkan ${start}-${end} dari ${totalItems} karyawan`;
+    }
+
+    // Event listeners
+    document.getElementById('search-btn').addEventListener('click', () => {
+        currentSearch = document.getElementById('search-input').value;
+        currentPage = 0;
+        fetchEmployees();
+    });
+
+    document.getElementById('sort-btn').addEventListener('click', () => {
+        currentSortBy = document.getElementById('sort-by').value;
+        currentSortDesc = document.getElementById('sort-order').value === 'desc';
+        currentPage = 0;
+        fetchEmployees();
+    });
+
+    document.getElementById('prev-page').addEventListener('click', () => {
+        if (currentPage > 0) {
+            currentPage--;
+            fetchEmployees();
+        }
+    });
+
+    document.getElementById('next-page').addEventListener('click', () => {
+        currentPage++;
+        fetchEmployees();
+    });
+
+    document.getElementById('active-only').addEventListener('change', function(e) {
+        currentActiveOnly = e.target.checked;
+        currentPage = 0;
+        fetchEmployees();
+    });
+
+    window.refreshData = function() {
+        currentPage = 0;
+        fetchEmployees();
+        fetchCheckinNiks(); // refresh juga daftar check-in
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '⏳ Refreshing...';
+        btn.disabled = true;
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }, 1000);
+    };
+
+    window.exportEmployees = async function() {
+        const response = await fetch('/api/v1/hr/employees/export', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) {
+            alert('Gagal export data');
+            return;
+        }
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'employees.xlsx';
+        a.click();
+        window.URL.revokeObjectURL(url);
+    };
+
+    // Modal import
+    window.showImportModal = function() {
+        document.getElementById('import-modal').style.display = 'block';
+    };
+    window.closeImportModal = function() {
+        document.getElementById('import-modal').style.display = 'none';
+        document.getElementById('import-result').innerHTML = '';
+        document.getElementById('import-form').reset();
+    };
+
+    document.getElementById('import-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const resultDiv = document.getElementById('import-result');
+        resultDiv.innerHTML = '<p>Uploading...</p>';
+        try {
+            const response = await fetch('/api/v1/hr/employees/import', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+            const result = await response.json();
+            if (response.ok && result.success) {
+                let message = `✅ Berhasil import ${result.inserted} data.`;
+                if (result.skipped) message += ` (${result.skipped} dilewati)`;
+                resultDiv.innerHTML = `<p class="success">${message}</p>`;
+                fetchEmployees();
+                fetchCheckinNiks(); // refresh setelah import
+                setTimeout(closeImportModal, 2000);
+            } else {
+                let errorHtml = '<p class="error">❌ Gagal import:</p><ul>';
+                if (result.errors) {
+                    result.errors.forEach(err => {
+                        errorHtml += `<li>Baris ${err.row}: ${err.field ? err.field + ' - ' : ''}${err.error}</li>`;
+                    });
+                } else {
+                    errorHtml += `<li>${result.detail || 'Unknown error'}</li>`;
+                }
+                errorHtml += '</ul>';
+                resultDiv.innerHTML = errorHtml;
+            }
+        } catch (error) {
+            resultDiv.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+        }
+    });
+
+    // Initial load
+    fetchCheckinNiks().then(() => fetchEmployees());
+</script>
+{% endblock %}

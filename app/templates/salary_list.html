@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+
+{% block page_title %}Data Gaji{% endblock %}
+{% block page_subtitle %}Kelola data gaji karyawan{% endblock %}
+
+{% block content %}
+<div class="salaries-header">
+    <h2>Daftar Gaji</h2>
+    <div class="salaries-actions">
+        <a href="/salaries/new" class="btn-primary">Tambah Gaji</a>
+        <button class="btn-secondary" onclick="showImportModal()">Import Excel</button>
+        <button class="btn-secondary" onclick="exportSalaries()">Export Excel</button>
+    </div>
+</div>
+
+<!-- Filter sederhana -->
+<div class="filter-sort-bar">
+    <div class="search-box">
+        <input type="text" id="search-input" placeholder="Cari NIK...">
+        <button id="search-btn" class="btn-filter">Cari</button>
+    </div>
+</div>
+
+<!-- Tabel Gaji -->
+<div class="salaries-table-container">
+    <table class="salaries-table">
+        <thead>
+            <tr>
+                <th>NIK</th>
+                <th>Periode</th>
+                <th>Aksi</th>
+            </tr>
+        </thead>
+        <tbody id="salaries-tbody">
+            <tr><td colspan="3" style="text-align: center;">Memuat data...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Pagination -->
+<div class="pagination">
+    <button id="prev-page" disabled>‹ Sebelumnya</button>
+    <span id="page-info">Halaman 1 dari 1</span>
+    <button id="next-page" disabled>Berikutnya ›</button>
+</div>
+
+<!-- Modal Import -->
+<div id="import-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close" onclick="closeImportModal()">&times;</span>
+        <h3>Import Gaji dari Excel</h3>
+        <form id="import-form" enctype="multipart/form-data">
+            <div class="form-group">
+                <label>Pilih file Excel</label>
+                <input type="file" name="file" accept=".xlsx,.xls" required>
+            </div>
+            <button type="submit" class="btn-primary">Upload</button>
+        </form>
+        <div id="import-result"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    const token = localStorage.getItem('access_token');
+    if (!token) window.location.href = '/';
+
+    let currentPage = 0;
+    const pageSize = 20;
+    let totalItems = 0;
+    let currentSearch = '';
+
+    async function fetchSalaries() {
+        const skip = currentPage * pageSize;
+        let url = `/api/v1/salaries/?skip=${skip}&limit=${pageSize}`;
+        if (currentSearch) {
+            url += `&search=${encodeURIComponent(currentSearch)}`;
+        }
+        try {
+            const response = await fetch(url, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                renderSalaries(data);
+                totalItems = data.length; // Sementara, nanti bisa ditambah total count
+                updatePagination();
+            } else {
+                document.getElementById('salaries-tbody').innerHTML = '<tr><td colspan="3">Gagal memuat data</td></tr>';
+            }
+        } catch (error) {
+            console.error(error);
+            document.getElementById('salaries-tbody').innerHTML = '<tr><td colspan="3">Error</td></tr>';
+        }
+    }
+
+    function renderSalaries(salaries) {
+        const tbody = document.getElementById('salaries-tbody');
+        tbody.innerHTML = '';
+        if (!salaries || salaries.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3">Tidak ada data</td></tr>';
+            return;
+        }
+        salaries.forEach(sal => {
+            const row = tbody.insertRow();
+            let periodeStr = '-';
+            if (sal.periode) {
+                const p = new Date(sal.periode);
+                const year = p.getFullYear();
+                const month = String(p.getMonth() + 1).padStart(2, '0');
+                periodeStr = `${year}-${month}`;
+            }
+            row.innerHTML = `
+                <td>${sal.nik}</td>
+                <td>${periodeStr}</td>
+                <td>
+                    <button onclick="editSalary(${sal.id})">Edit</button>
+                    <button onclick="deleteSalary(${sal.id})">Hapus</button>
+                </td>
+            `;
+        });
+    }
+
+    function updatePagination() {
+        const totalPages = Math.ceil(totalItems / pageSize);
+        document.getElementById('page-info').textContent = `Halaman ${currentPage + 1} dari ${totalPages || 1}`;
+        document.getElementById('prev-page').disabled = currentPage === 0;
+        document.getElementById('next-page').disabled = currentPage >= totalPages - 1;
+    }
+
+    window.editSalary = function(id) {
+        window.location.href = `/salaries/${id}`;
+    };
+
+    window.deleteSalary = async function(id) {
+        if (confirm('Yakin hapus data gaji ini?')) {
+            const response = await fetch(`/api/v1/salaries/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                fetchSalaries();
+            } else {
+                alert('Gagal menghapus');
+            }
+        }
+    };
+
+    window.exportSalaries = async function() {
+        const response = await fetch('/api/v1/salaries/export', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) {
+            alert('Gagal export');
+            return;
+        }
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'salaries.xlsx';
+        a.click();
+        window.URL.revokeObjectURL(url);
+    };
+
+    // Modal import
+    window.showImportModal = function() {
+        document.getElementById('import-modal').style.display = 'block';
+    };
+    window.closeImportModal = function() {
+        document.getElementById('import-modal').style.display = 'none';
+        document.getElementById('import-result').innerHTML = '';
+        document.getElementById('import-form').reset();
+    };
+
+    document.getElementById('import-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const resultDiv = document.getElementById('import-result');
+        resultDiv.innerHTML = '<p>Uploading...</p>';
+        try {
+            const response = await fetch('/api/v1/salaries/import', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+            const result = await response.json();
+            if (response.ok && result.success) {
+                let msg = `✅ Berhasil import ${result.inserted} data.`;
+                if (result.skipped) msg += ` (${result.skipped} dilewati)`;
+                resultDiv.innerHTML = `<p class="success">${msg}</p>`;
+                fetchSalaries();
+                setTimeout(closeImportModal, 2000);
+            } else {
+                let errorHtml = '<p class="error">❌ Gagal import:</p><ul>';
+                if (result.errors) {
+                    result.errors.forEach(err => {
+                        errorHtml += `<li>Baris ${err.row}: ${err.error}</li>`;
+                    });
+                } else {
+                    errorHtml += `<li>${result.detail || 'Unknown error'}</li>`;
+                }
+                errorHtml += '</ul>';
+                resultDiv.innerHTML = errorHtml;
+            }
+        } catch (error) {
+            resultDiv.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+        }
+    });
+
+    // Pagination
+    document.getElementById('prev-page').addEventListener('click', () => {
+        if (currentPage > 0) {
+            currentPage--;
+            fetchSalaries();
+        }
+    });
+    document.getElementById('next-page').addEventListener('click', () => {
+        currentPage++;
+        fetchSalaries();
+    });
+    document.getElementById('search-btn').addEventListener('click', () => {
+        currentSearch = document.getElementById('search-input').value;
+        currentPage = 0;
+        fetchSalaries();
+    });
+
+    fetchSalaries();
+</script>
+{% endblock %}

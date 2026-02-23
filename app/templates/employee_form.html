@@ -1,0 +1,825 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<!-- Chart.js untuk grafik -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .chart-container {
+        margin-bottom: 30px;
+        padding: 20px;
+        background: var(--color-card);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        position: relative;
+        height: 300px;
+    }
+    .stats-info {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 15px;
+        font-size: 0.9rem;
+        color: var(--color-text-secondary);
+        background: var(--color-bg);
+        padding: 8px 16px;
+        border-radius: var(--radius-md);
+    }
+    .stats-info div span {
+        font-weight: bold;
+        color: var(--color-text);
+        margin-left: 5px;
+    }
+    .increase-positive {
+        color: #4caf50;
+        font-weight: bold;
+    }
+    .increase-negative {
+        color: #f44336;
+        font-weight: bold;
+    }
+    .increase-zero {
+        color: #9e9e9e;
+    }
+    .checkbox-cell {
+        text-align: center;
+    }
+    .checkbox-cell input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
+{% block page_title %}{% if employee_id %}Edit Karyawan{% else %}Tambah Karyawan{% endif %}{% endblock %}
+{% block page_subtitle %}Lengkapi data karyawan dengan benar{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="tab-bar">
+        <button class="tab-btn active" data-tab="biodata">Biodata</button>
+        <button class="tab-btn" data-tab="personalia">Personalia</button>
+        <button class="tab-btn" data-tab="bank">Bank & Pajak</button>
+        <button class="tab-btn" data-tab="lainnya">Lainnya</button>
+        <button class="tab-btn" data-tab="gaji">Riwayat Gaji</button>
+    </div>
+
+    <form id="employee-form">
+        <!-- Biodata Tab -->
+        <div class="tab-pane active" id="tab-biodata">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>NIK *</label>
+                    <input type="text" name="nik" required>
+                </div>
+                <div class="form-group">
+                    <label>Nama *</label>
+                    <input type="text" name="nama" required>
+                </div>
+                <div class="form-group">
+                    <label>Jenis Kelamin *</label>
+                    <select name="sex" required>
+                        <option value="L">Laki-laki</option>
+                        <option value="P">Perempuan</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tanggal Lahir *</label>
+                    <input type="date" name="tgl_lahir" required>
+                </div>
+                <div class="form-group">
+                    <label>Tempat Lahir *</label>
+                    <input type="text" name="tempat_lahir" required>
+                </div>
+                <div class="form-group">
+                    <label>No KTP *</label>
+                    <input type="text" name="no_ktp" required>
+                </div>
+                <div class="form-group">
+                    <label>No KK</label>
+                    <input type="text" name="no_kk">
+                </div>
+                <div class="form-group">
+                    <label>No HP</label>
+                    <input type="text" name="no_hp">
+                </div>
+                <div class="form-group full-width">
+                    <label>Alamat</label>
+                    <textarea name="alamat"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Kelurahan</label>
+                    <input type="text" name="kelurahan">
+                </div>
+                <div class="form-group">
+                    <label>Kecamatan</label>
+                    <input type="text" name="kecamatan">
+                </div>
+                <div class="form-group">
+                    <label>Kabupaten/Kota</label>
+                    <input type="text" name="kabupaten_kota">
+                </div>
+                <div class="form-group">
+                    <label>Kode Pos</label>
+                    <input type="text" name="kode_pos">
+                </div>
+                <div class="form-group">
+                    <label>Provinsi</label>
+                    <input type="text" name="provinsi">
+                </div>
+                <div class="form-group">
+                    <label>Status Kawin</label>
+                    <select name="status_kawin">
+                        <option value="">Pilih</option>
+                        <option value="Belum Kawin">Belum Kawin</option>
+                        <option value="Kawin">Kawin</option>
+                        <option value="Cerai">Cerai</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tanggungan</label>
+                    <input type="number" name="tanggungan" value="0">
+                </div>
+                <div class="form-group">
+                    <label>Agama</label>
+                    <input type="text" name="agama">
+                </div>
+                <div class="form-group">
+                    <label>Tinggi Badan (cm)</label>
+                    <input type="number" step="0.1" name="tinggi_badan">
+                </div>
+                <div class="form-group">
+                    <label>Berat Badan (kg)</label>
+                    <input type="number" step="0.1" name="berat_badan">
+                </div>
+                <div class="form-group">
+                    <label>Golongan Darah</label>
+                    <select name="gol_darah">
+                        <option value="">Pilih</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="AB">AB</option>
+                        <option value="O">O</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Pendidikan</label>
+                    <input type="text" name="pendidikan">
+                </div>
+                <div class="form-group">
+                    <label>Foto</label>
+                    <input type="file" id="foto-file" accept="image/*">
+                    <input type="hidden" name="foto" id="foto-base64">
+                    <small>Pilih file gambar (maks 1MB).</small>
+                    <div id="foto-preview" style="margin-top: 10px;">
+                        <img id="preview-img" src="#" alt="Preview" style="max-width: 100px; max-height: 100px; display: none;">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Personalia Tab -->
+        <div class="tab-pane" id="tab-personalia">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Tanggal Rekrut *</label>
+                    <input type="date" name="tgl_rekrut" required>
+                </div>
+                <div class="form-group">
+                    <label>Status Karyawan</label>
+                    <select name="status_karyawan">
+                        <option value="">Pilih</option>
+                        <option value="Tetap">Tetap</option>
+                        <option value="Kontrak">Kontrak</option>
+                        <option value="OS">OS</option>
+                        <option value="Probation">Probation</option>
+                        <option value="Magang">Magang</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tanggal Karyawan Tetap</label>
+                    <input type="date" name="tgl_kartetap">
+                </div>
+                <div class="form-group">
+                    <label>Posisi Karyawan</label>
+                    <input type="text" name="posisi_karyawan">
+                </div>
+                <div class="form-group">
+                    <label>No Kartu KPK</label>
+                    <input type="text" name="no_kartu_kpk">
+                </div>
+                <div class="form-group">
+                    <label>Group</label>
+                    <input type="text" name="group">
+                </div>
+                <div class="form-group">
+                    <label>Departemen</label>
+                    <input type="text" name="dept">
+                </div>
+                <div class="form-group">
+                    <label>Jabatan</label>
+                    <input type="text" name="jabatan">
+                </div>
+                <div class="form-group">
+                    <label>Kontrak Ke</label>
+                    <input type="number" name="kontrak_ke" value="0">
+                </div>
+                <div class="form-group">
+                    <label>Kontrak Berakhir</label>
+                    <input type="date" name="kontrak_berakhir">
+                </div>
+                <div class="form-group">
+                    <label>Kode Gaji</label>
+                    <input type="text" name="kode_gaji">
+                </div>
+            </div>
+        </div>
+
+        <!-- Bank & Pajak Tab -->
+        <div class="tab-pane" id="tab-bank">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>No Rekening Bank</label>
+                    <input type="text" name="no_rek_bank">
+                </div>
+                <div class="form-group">
+                    <label>Kode Bank</label>
+                    <input type="text" name="kode_bank">
+                </div>
+                <div class="form-group">
+                    <label>Nama Bank</label>
+                    <input type="text" name="nama_bank">
+                </div>
+                <div class="form-group">
+                    <label>Status PTKP</label>
+                    <input type="text" name="status_ptkp">
+                </div>
+                <div class="form-group">
+                    <label>No NPWP</label>
+                    <input type="text" name="no_npwp">
+                </div>
+                <div class="form-group">
+                    <label>BPJS TK</label>
+                    <input type="checkbox" name="bpjs_tk" value="true">
+                </div>
+                <div class="form-group">
+                    <label>BPJS TK Ditanggung</label>
+                    <input type="text" name="bpjs_tk_ditanggung">
+                </div>
+                <div class="form-group">
+                    <label>No BPJS TK</label>
+                    <input type="text" name="bpjs_tk_no">
+                </div>
+                <div class="form-group">
+                    <label>BPJS Kesehatan</label>
+                    <input type="checkbox" name="bpjs_kes" value="true">
+                </div>
+                <div class="form-group">
+                    <label>BPJS Kes Ditanggung</label>
+                    <input type="text" name="bpjs_kes_ditanggung">
+                </div>
+                <div class="form-group">
+                    <label>No BPJS Kes</label>
+                    <input type="text" name="bpjs_kes_no">
+                </div>
+                <div class="form-group">
+                    <label>Status Pajak</label>
+                    <select name="status_pajak">
+                        <option value="">Pilih</option>
+                        <option value="TK0">TK0</option>
+                        <option value="TK1">TK1</option>
+                        <option value="TK2">TK2</option>
+                        <option value="TK3">TK3</option>
+                        <option value="K0">K0</option>
+                        <option value="K1">K1</option>
+                        <option value="K2">K2</option>
+                        <option value="K3">K3</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lainnya Tab -->
+        <div class="tab-pane" id="tab-lainnya">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Faskes</label>
+                    <input type="text" name="faskes">
+                </div>
+                <div class="form-group">
+                    <label>Placement</label>
+                    <input type="text" name="placement">
+                </div>
+                <div class="form-group">
+                    <label>Tanggal Keluar</label>
+                    <input type="date" name="tgl_out">
+                </div>
+                <div class="form-group">
+                    <label>Status Kerja</label>
+                    <select name="status_kerja">
+                        <option value="Aktif">Aktif</option>
+                        <option value="Keluar">Keluar</option>
+                        <option value="Cuti">Cuti</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Riwayat Gaji Tab -->
+        <div class="tab-pane" id="tab-gaji">
+            <div class="chart-container">
+                <canvas id="salaryChart"></canvas>
+            </div>
+            <div id="stats-info" class="stats-info"></div>
+            <div style="margin-bottom: 20px;">
+                <a href="/salaries/new?nik={{ employee_id }}" class="btn-primary">Tambah Gaji</a>
+            </div>
+            <div id="gaji-list">
+                <p>Memuat data gaji...</p>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">Simpan</button>
+            <a href="/employees" class="btn-secondary">Batal</a>
+        </div>
+    </form>
+</div>
+
+<!-- Modal Detail Gaji -->
+<div id="salary-detail-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 600px;">
+        <span class="close" onclick="closeSalaryDetailModal()">&times;</span>
+        <h3>Detail Gaji</h3>
+        <div id="salary-detail-content" style="max-height: 400px; overflow-y: auto;">Memuat...</div>
+    </div>
+</div>
+
+<!-- Script untuk proteksi akses -->
+<script>
+    (function() {
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            window.location.href = '/';
+            return;
+        }
+        // Cek role user
+        fetch('/api/v1/users/me', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        .then(res => res.json())
+        .then(user => {
+            if (user.role !== 'superadmin' && user.role !== 'admin') {
+                // Jika bukan admin/superadmin, redirect ke halaman employees
+                alert('Anda tidak memiliki akses ke halaman ini.');
+                window.location.href = '/employees';
+            }
+        })
+        .catch(() => {
+            window.location.href = '/';
+        });
+    })();
+</script>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // ==================== INISIALISASI ====================
+    const token = localStorage.getItem('access_token');
+    if (!token) window.location.href = '/';
+
+    const employeeId = {{ employee_id if employee_id else 'null' }};
+    const form = document.getElementById('employee-form');
+    let salaryChart = null;
+    let allSalaries = [];
+    let allStatsPerPeriode = [];
+
+    // ==================== TAB SWITCHING ====================
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const tabId = btn.getAttribute('data-tab');
+            document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            if (tabId === 'gaji' && employeeId) {
+                loadGajiData();
+            }
+        });
+    });
+
+    // ==================== LOAD DATA DARI BACKEND ====================
+    async function loadGajiData() {
+        const url = `/api/v1/hr/employees/${employeeId}/salaries`;
+        console.log('Loading salaries from:', url);
+        try {
+            const response = await fetch(url, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                console.log('Data received:', data);
+                allSalaries = data.items || [];
+                allStatsPerPeriode = data.stats_per_periode || [];
+                renderGajiTable(allSalaries);
+                renderStatsInfo(allStatsPerPeriode);
+                updateChartFromCheckboxes();
+            } else {
+                document.getElementById('gaji-list').innerHTML = '<p>Gagal memuat data gaji.</p>';
+                console.error('Response error:', response.status);
+            }
+        } catch (error) {
+            console.error('Error loading salaries:', error);
+            document.getElementById('gaji-list').innerHTML = '<p>Error memuat data.</p>';
+        }
+    }
+
+    function renderGajiTable(salaries) {
+        const container = document.getElementById('gaji-list');
+        if (!salaries || salaries.length === 0) {
+            container.innerHTML = '<p>Belum ada data gaji.</p>';
+            return;
+        }
+        let html = '<table class="employees-table"><thead><tr>' +
+                   '<th>Pilih</th>' +
+                   '<th>No</th>' +
+                   '<th>Periode</th>' +
+                   '<th>Total Gaji</th>' +
+                   '<th>Kenaikan (Rp)</th>' +
+                   '<th>Kenaikan (%)</th>' +
+                   '<th>Aksi</th>' +
+                   '</tr></thead><tbody>';
+        
+        salaries.forEach((sal, index) => {
+            const no = index + 1;
+            const checkboxId = `chk_${sal.periode.replace(/-/g, '_')}`;
+
+            let increaseRp = '';
+            let increasePct = '';
+            let symbolClass = '';
+            let symbol = '';
+
+            if (sal.increase_amount !== null && sal.increase_amount !== undefined) {
+                if (sal.increase_amount > 0) {
+                    symbol = '▲';
+                    symbolClass = 'increase-positive';
+                    increaseRp = sal.increase_amount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' });
+                    increasePct = sal.increase_percent.toFixed(2) + '%';
+                } else if (sal.increase_amount < 0) {
+                    symbol = '▼';
+                    symbolClass = 'increase-negative';
+                    increaseRp = sal.increase_amount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' });
+                    increasePct = sal.increase_percent.toFixed(2) + '%';
+                } else {
+                    symbol = '•';
+                    symbolClass = 'increase-zero';
+                    increaseRp = '0';
+                    increasePct = '0%';
+                }
+                increaseRp = `<span class="${symbolClass}">${symbol} ${increaseRp}</span>`;
+                increasePct = `<span class="${symbolClass}">${symbol} ${increasePct}</span>`;
+            } else {
+                increaseRp = '-';
+                increasePct = '-';
+            }
+
+            html += `<tr>
+                <td class="checkbox-cell">
+                    <input type="checkbox" class="row-checkbox" data-periode="${sal.periode}" checked>
+                </td>
+                <td>${no}</td>
+                <td>${sal.periode}</td>
+                <td>${sal.total.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}</td>
+                <td>${increaseRp}</td>
+                <td>${increasePct}</td>
+                <td>
+                    <button type="button" class="btn-filter" onclick="showSalaryDetail(${sal.id})">Detail</button>
+                </td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+
+        document.querySelectorAll('.row-checkbox').forEach(cb => {
+            cb.addEventListener('change', updateChartFromCheckboxes);
+        });
+    }
+
+    function updateChartFromCheckboxes() {
+        const selectedPeriodes = [];
+        document.querySelectorAll('.row-checkbox:checked').forEach(cb => {
+            selectedPeriodes.push(cb.getAttribute('data-periode'));
+        });
+        console.log('Selected periods:', selectedPeriodes);
+
+        const ascending = [...allSalaries].reverse();
+        const labels = ascending.map(s => s.periode);
+        const values = ascending.map(s => selectedPeriodes.includes(s.periode) ? s.total : null);
+
+        const statsAsc = [...allStatsPerPeriode].reverse();
+        const minData = labels.map(periode => {
+            if (!selectedPeriodes.includes(periode)) return null;
+            const stat = statsAsc.find(s => s.periode === periode);
+            return stat && stat.min !== null ? stat.min : null;
+        });
+        const maxData = labels.map(periode => {
+            if (!selectedPeriodes.includes(periode)) return null;
+            const stat = statsAsc.find(s => s.periode === periode);
+            return stat && stat.max !== null ? stat.max : null;
+        });
+        const avgData = labels.map(periode => {
+            if (!selectedPeriodes.includes(periode)) return null;
+            const stat = statsAsc.find(s => s.periode === periode);
+            return stat && stat.avg !== null ? stat.avg : null;
+        });
+
+        renderChart(labels, values, minData, maxData, avgData);
+    }
+
+    function renderChart(labels, values, minData, maxData, avgData) {
+        console.log('Rendering chart with labels:', labels);
+        if (!labels || labels.length === 0) {
+            document.querySelector('.chart-container').style.display = 'none';
+            return;
+        }
+        document.querySelector('.chart-container').style.display = 'block';
+
+        if (salaryChart) {
+            salaryChart.destroy();
+        }
+
+        const ctx = document.getElementById('salaryChart').getContext('2d');
+        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, 'rgba(0, 71, 171, 0.8)');
+        gradient.addColorStop(1, 'rgba(0, 71, 171, 0.1)');
+
+        const datasets = [{
+            // label: 'Gaji per Periode',
+            data: values,
+            borderColor: 'rgba(0, 71, 171, 1)',
+            backgroundColor: gradient,
+            fill: true,
+            tension: 0.1,
+            pointBackgroundColor: 'rgba(255, 215, 0, 1)',
+            pointBorderColor: '#fff',
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            spanGaps: true,
+        }];
+
+        if (minData.some(v => v !== null)) {
+            datasets.push({
+                label: 'Min',
+                data: minData,
+                borderColor: 'rgba(204, 85, 0, 0.8)',
+                borderWidth: 2,
+                borderDash: [5, 5],
+                pointRadius: 0,
+                fill: false,
+                spanGaps: true,
+            });
+        }
+        if (maxData.some(v => v !== null)) {
+            datasets.push({
+                label: 'Max',
+                data: maxData,
+                borderColor: 'rgba(34, 139, 34, 0.8)',
+                borderWidth: 2,
+                borderDash: [5, 5],
+                pointRadius: 0,
+                fill: false,
+                spanGaps: true,
+            });
+        }
+        if (avgData.some(v => v !== null)) {
+            datasets.push({
+                label: 'Rata-rata',
+                data: avgData,
+                borderColor: 'rgba(255, 215, 0, 0.8)',
+                borderWidth: 2,
+                borderDash: [5, 5],
+                pointRadius: 0,
+                fill: false,
+                spanGaps: true,
+            });
+        }
+
+        salaryChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true, position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) label += ': ';
+                                if (context.parsed.y !== null) {
+                                    label += new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(context.parsed.y);
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        ticks: {
+                            callback: value => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value)
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderStatsInfo(statsPerPeriode) {
+        const infoDiv = document.getElementById('stats-info');
+        if (!statsPerPeriode || statsPerPeriode.length === 0) {
+            infoDiv.innerHTML = '';
+            return;
+        }
+        const latest = statsPerPeriode[0];
+        infoDiv.innerHTML = `
+            <div>Min: <span>${latest.min ? latest.min.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' }) : '-'}</span></div>
+            <div>Rata-rata: <span>${latest.avg ? latest.avg.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' }) : '-'}</span></div>
+            <div>Max: <span>${latest.max ? latest.max.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' }) : '-'}</span></div>
+        `;
+    }
+
+    // ==================== DETAIL GAJI (MODAL) ====================
+    window.showSalaryDetail = async function(salaryId) {
+        // Validasi salaryId
+        if (!salaryId || salaryId === undefined) {
+            alert('ID gaji tidak valid');
+            return;
+        }
+        try {
+            const response = await fetch(`/api/v1/salaries/${salaryId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                let html = '<table style="width:100%; border-collapse: collapse;">';
+                const fieldNames = {
+                    nik: 'NIK',
+                    periode: 'Periode',
+                    gaji_pokok: 'Gaji Pokok',
+                    tunj_berkala: 'Tunjangan Berkala',
+                    tunj_jabatan: 'Tunjangan Jabatan',
+                    tunj_kerajinan: 'Tunjangan Kerajinan',
+                    tunj_pph21: 'Tunjangan PPh21',
+                    uang_shift: 'Uang Shift',
+                    uang_makan: 'Uang Makan',
+                    ins_prod: 'Insentif Produksi',
+                    bonus_skill: 'Bonus Skill',
+                    ins_hadir: 'Insentif Hadir',
+                    kompensasi_cuti: 'Kompensasi Cuti',
+                    lainnya1: 'Lainnya 1',
+                    lainnya2: 'Lainnya 2',
+                    lainnya3: 'Lainnya 3',
+                    created_at: 'Dibuat',
+                    updated_at: 'Diperbarui'
+                };
+                for (const [key, value] of Object.entries(data)) {
+                    if (key === 'id') continue;
+                    let displayKey = fieldNames[key] || key;
+                    let displayValue = value;
+                    if (value === null || value === undefined) {
+                        displayValue = '-';
+                    } else if (typeof value === 'number' && (key.includes('gaji') || key.includes('tunj') || key.includes('uang') || key.includes('ins') || key.includes('bonus') || key.includes('kompensasi') || key.includes('lainnya') || key.includes('total'))) {
+                        displayValue = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(value);
+                    } else if ((key === 'created_at' || key === 'updated_at') && value) {
+                        const d = new Date(value);
+                        displayValue = d.toLocaleString('id-ID');
+                    }
+                    html += `<tr><td><strong>${displayKey}</strong></td><td>${displayValue}</td></tr>`;
+                }
+                html += '</table>';
+                document.getElementById('salary-detail-content').innerHTML = html;
+                document.getElementById('salary-detail-modal').style.display = 'block';
+            } else {
+                alert('Gagal mengambil data gaji');
+            }
+        } catch (error) {
+            console.error('Error fetching salary detail:', error);
+            alert('Terjadi kesalahan');
+        }
+    };
+
+    window.closeSalaryDetailModal = function() {
+        document.getElementById('salary-detail-modal').style.display = 'none';
+    };
+
+    window.addEventListener('click', function(event) {
+        const modal = document.getElementById('salary-detail-modal');
+        if (event.target == modal) {
+            closeSalaryDetailModal();
+        }
+    });
+
+    // ==================== FOTO UPLOAD ====================
+    const fotoInput = document.getElementById('foto-file');
+    const fotoBase64 = document.getElementById('foto-base64');
+    const previewImg = document.getElementById('preview-img');
+
+    if (fotoInput) {
+        fotoInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                if (file.size > 1 * 1024 * 1024) {
+                    alert('Ukuran file maksimal 1MB');
+                    fotoInput.value = '';
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const base64 = e.target.result;
+                    fotoBase64.value = base64;
+                    previewImg.src = base64;
+                    previewImg.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                fotoBase64.value = '';
+                previewImg.style.display = 'none';
+            }
+        });
+    }
+
+    // ==================== LOAD DATA KARYAWAN UNTUK EDIT ====================
+    if (employeeId) {
+        fetch(`/api/v1/hr/employees/${employeeId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        .then(res => res.json())
+        .then(data => {
+            for (const [key, value] of Object.entries(data)) {
+                const input = form.querySelector(`[name="${key}"]`);
+                if (input) {
+                    if (input.type === 'checkbox') {
+                        input.checked = value === true;
+                    } else if (input.type === 'date' && value) {
+                        const d = new Date(value);
+                        const year = d.getFullYear();
+                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                        const day = String(d.getDate()).padStart(2, '0');
+                        input.value = `${year}-${month}-${day}`;
+                    } else {
+                        input.value = value ?? '';
+                    }
+                }
+            }
+            if (data.foto) {
+                if (data.foto.startsWith('data:image')) {
+                    previewImg.src = data.foto;
+                    fotoBase64.value = data.foto;
+                } else {
+                    previewImg.src = `/static/${data.foto}`;
+                }
+                previewImg.style.display = 'block';
+            }
+        });
+    }
+
+    // ==================== SUBMIT FORM ====================
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(form);
+        const data = {};
+        formData.forEach((value, key) => {
+            const input = form.querySelector(`[name="${key}"]`);
+            if (input.type === 'checkbox') {
+                data[key] = input.checked;
+            } else if (input.type === 'number') {
+                data[key] = value ? parseFloat(value) : null;
+            } else {
+                data[key] = value || null;
+            }
+        });
+
+        const url = employeeId ? `/api/v1/hr/employees/${employeeId}` : '/api/v1/hr/employees';
+        const method = employeeId ? 'PUT' : 'POST';
+
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            window.location.href = '/employees';
+        } else {
+            const err = await response.json();
+            alert('Error: ' + (err.detail || 'Unknown error'));
+        }
+    });
+</script>
+{% endblock %}

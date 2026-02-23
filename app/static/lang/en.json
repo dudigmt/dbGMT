@@ -1,0 +1,12 @@
+{
+    "welcome": "Welcome to dbGMT",
+    "description": "Centralized enterprise data system - Single Source of Truth",
+    "hr_module": "HR Module",
+    "hr_desc": "Manage employees, divisions, and positions.",
+    "production_module": "Production Module",
+    "production_desc": "Manage production data (coming soon).",
+    "operations_module": "Operations Module",
+    "operations_desc": "Manage operational data (coming soon).",
+    "reports": "Reports",
+    "reports_desc": "Generate insights and analytics."
+}

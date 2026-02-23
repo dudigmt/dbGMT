@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block page_title %}{% if salary_id %}Edit Gaji{% else %}Tambah Gaji{% endif %}{% endblock %}
+{% block page_subtitle %}Masukkan data gaji karyawan{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <form id="salary-form">
+        <div class="form-grid">
+            <div class="form-group">
+                <label>NIK *</label>
+                <input type="text" name="nik" required>
+            </div>
+            <div class="form-group">
+                <label>Periode *</label>
+                <input type="date" name="periode" required>
+            </div>
+            <div class="form-group">
+                <label>Gaji Pokok</label>
+                <input type="number" step="0.01" name="gaji_pokok">
+            </div>
+            <div class="form-group">
+                <label>Tunjangan Berkala</label>
+                <input type="number" step="0.01" name="tunj_berkala">
+            </div>
+            <div class="form-group">
+                <label>Tunjangan Jabatan</label>
+                <input type="number" step="0.01" name="tunj_jabatan">
+            </div>
+            <div class="form-group">
+                <label>Tunjangan Kerajinan</label>
+                <input type="number" step="0.01" name="tunj_kerajinan">
+            </div>
+            <div class="form-group">
+                <label>Tunjangan PPh21</label>
+                <input type="number" step="0.01" name="tunj_pph21">
+            </div>
+            <div class="form-group">
+                <label>Uang Shift</label>
+                <input type="number" step="0.01" name="uang_shift">
+            </div>
+            <div class="form-group">
+                <label>Uang Makan</label>
+                <input type="number" step="0.01" name="uang_makan">
+            </div>
+            <div class="form-group">
+                <label>Insentif Produksi</label>
+                <input type="number" step="0.01" name="ins_prod">
+            </div>
+            <div class="form-group">
+                <label>Bonus Skill</label>
+                <input type="number" step="0.01" name="bonus_skill">
+            </div>
+            <div class="form-group">
+                <label>Insentif Hadir</label>
+                <input type="number" step="0.01" name="ins_hadir">
+            </div>
+            <div class="form-group">
+                <label>Kompensasi Cuti</label>
+                <input type="number" step="0.01" name="kompensasi_cuti">
+            </div>
+            <div class="form-group">
+                <label>Lainnya 1</label>
+                <input type="number" step="0.01" name="lainnya1">
+            </div>
+            <div class="form-group">
+                <label>Lainnya 2</label>
+                <input type="number" step="0.01" name="lainnya2">
+            </div>
+            <div class="form-group">
+                <label>Lainnya 3</label>
+                <input type="number" step="0.01" name="lainnya3">
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">Simpan</button>
+            <a href="/salaries" class="btn-secondary">Batal</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    const token = localStorage.getItem('access_token');
+    if (!token) window.location.href = '/';
+
+    const salaryId = {{ salary_id if salary_id else 'null' }};
+    const form = document.getElementById('salary-form');
+
+    if (salaryId) {
+        fetch(`/api/v1/salaries/${salaryId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        .then(res => res.json())
+        .then(data => {
+            for (const [key, value] of Object.entries(data)) {
+                const input = form.querySelector(`[name="${key}"]`);
+                if (input) {
+                    if (input.type === 'date' && value) {
+                        const d = new Date(value);
+                        const year = d.getFullYear();
+                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                        const day = String(d.getDate()).padStart(2, '0');
+                        input.value = `${year}-${month}-${day}`;
+                    } else {
+                        input.value = value ?? '';
+                    }
+                }
+            }
+        });
+    }
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(form);
+        const data = {};
+        formData.forEach((value, key) => {
+            const input = form.querySelector(`[name="${key}"]`);
+            if (input.type === 'number') {
+                data[key] = value ? parseFloat(value) : null;
+            } else {
+                data[key] = value || null;
+            }
+        });
+        const url = salaryId ? `/api/v1/salaries/${salaryId}` : '/api/v1/salaries/';
+        const method = salaryId ? 'PUT' : 'POST';
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(data)
+        });
+        if (response.ok) {
+            window.location.href = '/salaries';
+        } else {
+            const err = await response.json();
+            alert('Error: ' + (err.detail || 'Unknown error'));
+        }
+    });
+</script>
+{% endblock %}

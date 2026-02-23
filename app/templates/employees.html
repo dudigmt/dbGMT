@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Karyawan{% endblock %}
+{% block content %}
+<h1 class="text-3xl font-bold mb-4">Daftar Karyawan</h1>
+<div class="mb-4">
+    <a href="/employees/new" class="bg-[#228B22] text-white px-4 py-2 rounded hover:bg-[#1e7a1e]">Tambah Karyawan</a>
+    <!-- Upload Excel button -->
+    <button id="uploadBtn" class="bg-[#FFD700] text-black px-4 py-2 rounded hover:bg-[#e6c200] ml-2">Upload Excel</button>
+    <input type="file" id="excelFile" accept=".xlsx,.xls" class="hidden">
+</div>
+<table class="min-w-full bg-white dark:bg-gray-800 rounded shadow">
+    <thead>
+        <tr>
+            <th class="py-2 px-4 border-b">Kode</th>
+            <th class="py-2 px-4 border-b">Nama</th>
+            <th class="py-2 px-4 border-b">Divisi</th>
+            <th class="py-2 px-4 border-b">Posisi</th>
+            <th class="py-2 px-4 border-b">Status</th>
+            <th class="py-2 px-4 border-b">Aksi</th>
+        </tr>
+    </thead>
+    <tbody id="employeeTable"></tbody>
+</table>
+<script>
+    const token = localStorage.getItem('token');
+    if (!token) window.location.href = '/login';
+
+    async function loadEmployees() {
+        const res = await fetch('/api/v1/hr/employees', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const employees = await res.json();
+        const tbody = document.getElementById('employeeTable');
+        tbody.innerHTML = '';
+        for (const emp of employees) {
+            // Fetch division and position names (simple, bisa juga di-backend)
+            const divRes = await fetch(`/api/v1/hr/divisions/${emp.division_id}`, { headers: { 'Authorization': `Bearer ${token}` } });
+            const div = await divRes.json();
+            const posRes = await fetch(`/api/v1/hr/positions/${emp.position_id}`, { headers: { 'Authorization': `Bearer ${token}` } });
+            const pos = await posRes.json();
+            const row = `<tr>
+                <td class="py-2 px-4 border-b">${emp.employee_code}</td>
+                <td class="py-2 px-4 border-b">${emp.name}</td>
+                <td class="py-2 px-4 border-b">${div.name}</td>
+                <td class="py-2 px-4 border-b">${pos.name}</td>
+                <td class="py-2 px-4 border-b">${emp.employment_status}</td>
+                <td class="py-2 px-4 border-b">
+                    <button onclick="edit(${emp.id})" class="text-blue-500">Edit</button>
+                    <button onclick="deleteEmp(${emp.id})" class="text-red-500 ml-2">Hapus</button>
+                </td>
+            </tr>`;
+            tbody.innerHTML += row;
+        }
+    }
+
+    document.getElementById('uploadBtn').addEventListener('click', () => {
+        document.getElementById('excelFile').click();
+    });
+
+    document.getElementById('excelFile').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch('/api/v1/hr/employees/upload', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+        });
+        const result = await res.json();
+        if (res.ok) {
+            alert('Upload berhasil: ' + result.inserted + ' data ditambahkan');
+            loadEmployees();
+        } else {
+            alert('Upload gagal: ' + JSON.stringify(result.errors));
+        }
+    });
+
+    loadEmployees();
+
+    function edit(id) {
+        window.location.href = `/employees/edit/${id}`;
+    }
+    async function deleteEmp(id) {
+        if (confirm('Yakin hapus?')) {
+            await fetch(`/api/v1/hr/employees/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            loadEmployees();
+        }
+    }
+</script>
+{% endblock %}
